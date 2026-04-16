@@ -5,6 +5,15 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { seoulSeedData } from '@/lib/seed';
 import type { Activity, ActivityCategory, ItineraryDay, Trip } from '@/lib/types';
 
+type ActivityInput = {
+  dayId: string;
+  category: ActivityCategory;
+  time: string;
+  place: string;
+  note: string;
+  cost: number;
+};
+
 type TripState = {
   trip: Trip;
   days: ItineraryDay[];
@@ -13,14 +22,8 @@ type TripState = {
   seedData: () => void;
   selectDay: (dayId: string) => void;
   resetToSeed: () => void;
-  addActivity: (input: {
-    dayId: string;
-    category: ActivityCategory;
-    time: string;
-    place: string;
-    note: string;
-    cost: number;
-  }) => void;
+  addActivity: (input: ActivityInput) => void;
+  updateActivity: (activityId: string, input: ActivityInput) => void;
   moveActivityUp: (activityId: string) => void;
   moveActivityDown: (activityId: string) => void;
 };
@@ -42,6 +45,25 @@ const categoryTitle: Record<ActivityCategory, string> = {
   other: '其他'
 };
 
+const timeToMinutes = (value: string) => {
+  const [hour, minute] = value.split(':').map(Number);
+  return hour * 60 + minute;
+};
+
+const sortDayActivitiesByTime = (activities: Activity[], dayId: string) => {
+  const target = activities
+    .filter((activity) => activity.dayId === dayId)
+    .sort((a, b) => {
+      const timeDiff = timeToMinutes(a.time) - timeToMinutes(b.time);
+      if (timeDiff !== 0) return timeDiff;
+      return a.order - b.order;
+    })
+    .map((activity, index) => ({ ...activity, order: index + 1 }));
+
+  const otherDays = activities.filter((activity) => activity.dayId !== dayId);
+  return [...otherDays, ...target];
+};
+
 export const useTripStore = create<TripState>()(
   persist(
     (set, get) => ({
@@ -50,8 +72,7 @@ export const useTripStore = create<TripState>()(
       selectDay: (dayId) => set({ selectedDayId: dayId }),
       resetToSeed: () => set({ ...initialState }),
       addActivity: ({ dayId, category, time, place, note, cost }) => {
-        const dayActivities = get().activities.filter((a) => a.dayId === dayId);
-        const nextOrder = dayActivities.length ? Math.max(...dayActivities.map((a) => a.order)) + 1 : 1;
+        const dayActivities = get().activities.filter((activity) => activity.dayId === dayId);
         const nextId = `activity-${dayId}-${Date.now()}`;
 
         const newActivity: Activity = {
@@ -63,23 +84,46 @@ export const useTripStore = create<TripState>()(
           place,
           note,
           cost,
-          order: nextOrder
+          order: dayActivities.length + 1
         };
 
-        set({ activities: [...get().activities, newActivity] });
+        const nextActivities = sortDayActivitiesByTime([...get().activities, newActivity], dayId);
+        set({ activities: nextActivities });
+      },
+      updateActivity: (activityId, { dayId, category, time, place, note, cost }) => {
+        const current = get().activities.find((activity) => activity.id === activityId);
+        if (!current) return;
+
+        const nextActivities = get().activities.map((activity) => {
+          if (activity.id !== activityId) return activity;
+          return {
+            ...activity,
+            dayId,
+            category,
+            time,
+            place,
+            note,
+            cost,
+            title: `${categoryTitle[category]}：${place}`
+          };
+        });
+
+        const sortedCurrentDay = sortDayActivitiesByTime(nextActivities, current.dayId);
+        const sortedTargetDay = sortDayActivitiesByTime(sortedCurrentDay, dayId);
+        set({ activities: sortedTargetDay });
       },
       moveActivityUp: (activityId) => {
         const activities = [...get().activities];
-        const target = activities.find((a) => a.id === activityId);
+        const target = activities.find((activity) => activity.id === activityId);
         if (!target) return;
         const siblings = activities
-          .filter((a) => a.dayId === target.dayId)
+          .filter((activity) => activity.dayId === target.dayId)
           .sort((a, b) => a.order - b.order);
-        const index = siblings.findIndex((a) => a.id === activityId);
+        const index = siblings.findIndex((activity) => activity.id === activityId);
         if (index <= 0) return;
         const prev = siblings[index - 1];
-        const targetRef = activities.find((a) => a.id === target.id);
-        const prevRef = activities.find((a) => a.id === prev.id);
+        const targetRef = activities.find((activity) => activity.id === target.id);
+        const prevRef = activities.find((activity) => activity.id === prev.id);
         if (!targetRef || !prevRef) return;
         const temp = targetRef.order;
         targetRef.order = prevRef.order;
@@ -88,16 +132,16 @@ export const useTripStore = create<TripState>()(
       },
       moveActivityDown: (activityId) => {
         const activities = [...get().activities];
-        const target = activities.find((a) => a.id === activityId);
+        const target = activities.find((activity) => activity.id === activityId);
         if (!target) return;
         const siblings = activities
-          .filter((a) => a.dayId === target.dayId)
+          .filter((activity) => activity.dayId === target.dayId)
           .sort((a, b) => a.order - b.order);
-        const index = siblings.findIndex((a) => a.id === activityId);
+        const index = siblings.findIndex((activity) => activity.id === activityId);
         if (index === -1 || index >= siblings.length - 1) return;
         const next = siblings[index + 1];
-        const targetRef = activities.find((a) => a.id === target.id);
-        const nextRef = activities.find((a) => a.id === next.id);
+        const targetRef = activities.find((activity) => activity.id === target.id);
+        const nextRef = activities.find((activity) => activity.id === next.id);
         if (!targetRef || !nextRef) return;
         const temp = targetRef.order;
         targetRef.order = nextRef.order;

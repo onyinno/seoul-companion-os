@@ -7,7 +7,7 @@ import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddActivitySheet } from '@/components/add-activity-sheet';
-import type { ActivityCategory } from '@/lib/types';
+import type { Activity, ActivityCategory } from '@/lib/types';
 
 const categoryLabel: Record<ActivityCategory, string> = {
   food: '美食',
@@ -21,12 +21,41 @@ const categoryLabel: Record<ActivityCategory, string> = {
 
 export function TripScreen() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const { days, activities, selectedDayId, selectDay, addActivity, moveActivityUp, moveActivityDown } = useTripStore();
-  const selectedDay = days.find((d) => d.id === selectedDayId) ?? days[0];
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const { days, activities, selectedDayId, selectDay, addActivity, updateActivity, moveActivityUp, moveActivityDown } = useTripStore();
+  const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
   const dayActivities = useMemo(
-    () => activities.filter((a) => a.dayId === selectedDay.id).sort((a, b) => a.order - b.order),
+    () => activities.filter((activity) => activity.dayId === selectedDay.id).sort((a, b) => a.order - b.order),
     [activities, selectedDay.id]
   );
+
+  const handleCloseSheet = () => {
+    setIsSheetOpen(false);
+    setEditingActivity(null);
+  };
+
+  const handleCreate = (input: {
+    dayId: string;
+    category: ActivityCategory;
+    time: string;
+    place: string;
+    note: string;
+    cost: number;
+  }) => {
+    addActivity(input);
+  };
+
+  const handleEdit = (input: {
+    dayId: string;
+    category: ActivityCategory;
+    time: string;
+    place: string;
+    note: string;
+    cost: number;
+  }) => {
+    if (!editingActivity) return;
+    updateActivity(editingActivity.id, input);
+  };
 
   return (
     <>
@@ -63,7 +92,18 @@ export function TripScreen() {
               <p className="text-xs uppercase tracking-wide text-slate-500">{categoryLabel[activity.category]}</p>
               <p className="mt-1 font-medium">{activity.time} · {activity.title}</p>
               <p className="text-sm text-slate-600">{activity.place}</p>
+              <p className="text-sm text-slate-600">{activity.note}</p>
+              <p className="mt-1 text-sm font-medium text-slate-700">預計花費：₩{activity.cost.toLocaleString()}</p>
               <div className="mt-3 flex gap-2">
+                <Button
+                  onClick={() => {
+                    setEditingActivity(activity);
+                    setIsSheetOpen(true);
+                  }}
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                >
+                  編輯
+                </Button>
                 <Button onClick={() => moveActivityUp(activity.id)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs">上移</Button>
                 <Button onClick={() => moveActivityDown(activity.id)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs">下移</Button>
               </div>
@@ -71,16 +111,25 @@ export function TripScreen() {
           ))}
         </ul>
 
-        <Button onClick={() => setIsSheetOpen(true)} className="fixed bottom-24 right-6 rounded-full bg-slate-900 p-4 text-white shadow-soft" aria-label="新增活動">
+        <Button
+          onClick={() => {
+            setEditingActivity(null);
+            setIsSheetOpen(true);
+          }}
+          className="fixed bottom-24 right-6 rounded-full bg-slate-900 p-4 text-white shadow-soft"
+          aria-label="新增活動"
+        >
           <Plus className="h-5 w-5" />
         </Button>
       </div>
 
       <AddActivitySheet
         open={isSheetOpen}
-        dayId={selectedDay.id}
-        onClose={() => setIsSheetOpen(false)}
-        onSubmit={addActivity}
+        mode={editingActivity ? 'edit' : 'create'}
+        initialActivity={editingActivity}
+        dayId={editingActivity?.dayId ?? selectedDay.id}
+        onClose={handleCloseSheet}
+        onSubmit={editingActivity ? handleEdit : handleCreate}
       />
     </>
   );

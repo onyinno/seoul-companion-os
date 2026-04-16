@@ -46,6 +46,7 @@ export function DashboardScreen() {
               <li key={item.id} className="rounded-xl border border-slate-200 px-3 py-2">
                 <p className="font-medium">{item.time} · {item.title}</p>
                 <p className="text-slate-500">{item.place}</p>
+                <p className="text-xs text-slate-500">預計花費：₩{item.cost.toLocaleString()}</p>
               </li>
             ))}
           </ul>
@@ -62,6 +63,7 @@ export function DashboardScreen() {
 
       <AddActivitySheet
         open={isSheetOpen}
+        mode="create"
         dayId={todayDay.id}
         onClose={() => setIsSheetOpen(false)}
         onSubmit={addActivity}
