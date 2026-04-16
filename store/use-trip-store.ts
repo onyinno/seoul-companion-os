@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { seoulSeedData } from '@/lib/seed';
-import type { Activity, ItineraryDay, Trip } from '@/lib/types';
+import type { Activity, ActivityCategory, ItineraryDay, Trip } from '@/lib/types';
 
 type TripState = {
   trip: Trip;
@@ -13,7 +13,14 @@ type TripState = {
   seedData: () => void;
   selectDay: (dayId: string) => void;
   resetToSeed: () => void;
-  addQuickNoteActivity: (dayId: string) => void;
+  addActivity: (input: {
+    dayId: string;
+    category: ActivityCategory;
+    time: string;
+    place: string;
+    note: string;
+    cost: number;
+  }) => void;
   moveActivityUp: (activityId: string) => void;
   moveActivityDown: (activityId: string) => void;
 };
@@ -25,6 +32,16 @@ const initialState = {
   selectedDayId: seoulSeedData.days[0].id
 };
 
+const categoryTitle: Record<ActivityCategory, string> = {
+  food: '美食',
+  cafe: '咖啡店',
+  sightseeing: '觀光',
+  shopping: '購物',
+  transport: '交通',
+  hotel: '住宿',
+  other: '其他'
+};
+
 export const useTripStore = create<TripState>()(
   persist(
     (set, get) => ({
@@ -32,21 +49,23 @@ export const useTripStore = create<TripState>()(
       seedData: () => set({ ...initialState }),
       selectDay: (dayId) => set({ selectedDayId: dayId }),
       resetToSeed: () => set({ ...initialState }),
-      addQuickNoteActivity: (dayId) => {
+      addActivity: ({ dayId, category, time, place, note, cost }) => {
         const dayActivities = get().activities.filter((a) => a.dayId === dayId);
         const nextOrder = dayActivities.length ? Math.max(...dayActivities.map((a) => a.order)) + 1 : 1;
-        const nextId = `quick-${dayId}-${Date.now()}`;
+        const nextId = `activity-${dayId}-${Date.now()}`;
+
         const newActivity: Activity = {
           id: nextId,
           dayId,
-          title: 'Quick Note Placeholder',
-          category: 'other',
-          time: '12:00',
-          place: 'Add location',
-          note: 'Created from quick action. Edit in Phase 2.',
-          cost: 0,
+          title: `${categoryTitle[category]}：${place}`,
+          category,
+          time,
+          place,
+          note,
+          cost,
           order: nextOrder
         };
+
         set({ activities: [...get().activities, newActivity] });
       },
       moveActivityUp: (activityId) => {

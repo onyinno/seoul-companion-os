@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Home } from 'lucide-react';
+import { CalendarDays, House } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const nav = [
-  { href: '/', label: 'Home', icon: Home },
-  { href: '/trip', label: 'Itinerary', icon: CalendarDays }
+  { href: '/', label: '首頁', icon: House },
+  { href: '/trip', label: '行程', icon: CalendarDays }
 ];
 
 export function MobileShell({ children }: { children: React.ReactNode }) {
