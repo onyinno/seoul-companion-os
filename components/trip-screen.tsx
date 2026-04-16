@@ -22,7 +22,9 @@ const categoryLabel: Record<ActivityCategory, string> = {
 export function TripScreen() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const { days, activities, selectedDayId, selectDay, addActivity, updateActivity, moveActivityUp, moveActivityDown } = useTripStore();
+  const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
+
+  const { days, activities, selectedDayId, selectDay, addActivity, updateActivity, deleteActivity, moveActivityUp, moveActivityDown } = useTripStore();
   const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
   const dayActivities = useMemo(
     () => activities.filter((activity) => activity.dayId === selectedDay.id).sort((a, b) => a.order - b.order),
@@ -55,6 +57,12 @@ export function TripScreen() {
   }) => {
     if (!editingActivity) return;
     updateActivity(editingActivity.id, input);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deletingActivity) return;
+    deleteActivity(deletingActivity.id);
+    setDeletingActivity(null);
   };
 
   return (
@@ -94,7 +102,7 @@ export function TripScreen() {
               <p className="text-sm text-slate-600">{activity.place}</p>
               <p className="text-sm text-slate-600">{activity.note}</p>
               <p className="mt-1 text-sm font-medium text-slate-700">預計花費：₩{activity.cost.toLocaleString()}</p>
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Button
                   onClick={() => {
                     setEditingActivity(activity);
@@ -103,6 +111,12 @@ export function TripScreen() {
                   className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
                 >
                   編輯
+                </Button>
+                <Button
+                  onClick={() => setDeletingActivity(activity)}
+                  className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700"
+                >
+                  刪除
                 </Button>
                 <Button onClick={() => moveActivityUp(activity.id)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs">上移</Button>
                 <Button onClick={() => moveActivityDown(activity.id)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs">下移</Button>
@@ -131,6 +145,21 @@ export function TripScreen() {
         onClose={handleCloseSheet}
         onSubmit={editingActivity ? handleEdit : handleCreate}
       />
+
+      {deletingActivity && (
+        <div className="fixed inset-0 z-[70] bg-slate-900/40">
+          <button className="h-full w-full" aria-label="關閉刪除確認" onClick={() => setDeletingActivity(null)} />
+          <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-4 shadow-soft">
+            <h3 className="text-lg font-semibold">確認刪除活動？</h3>
+            <p className="mt-1 text-sm text-slate-600">{deletingActivity.time} · {deletingActivity.title}</p>
+            <p className="text-sm text-slate-500">刪除後將無法復原。</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button onClick={() => setDeletingActivity(null)} className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-700">取消</Button>
+              <Button onClick={handleConfirmDelete} className="rounded-xl bg-red-600 px-4 py-3 text-white">確認刪除</Button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }
