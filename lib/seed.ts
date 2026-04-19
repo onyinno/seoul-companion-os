@@ -181,5 +181,15 @@ export const seoulSeedData: SeedData = {
       "避免大汗與劇烈活動",
       "保持舒適與清淡"
     ]
+  },
+  "shopping": {
+    "items": [
+      {"id":"shop-1","title":"保濕精華","category":"美妝 / 護膚","areaTag":"Olive Young","note":"比香港平先入手","completed":false},
+      {"id":"shop-2","title":"韓系耳環","category":"服飾 / 配件","areaTag":"弘大","note":"找簡約銀色款","completed":false},
+      {"id":"shop-3","title":"海苔脆片","category":"零食 / 食品","areaTag":"便利店","note":"","completed":false},
+      {"id":"shop-4","title":"旅行收納袋","category":"生活雜貨","areaTag":"Daiso","note":"中小尺寸各一","completed":true},
+      {"id":"shop-5","title":"Type-C 線","category":"電子 / 配件","areaTag":"聖水","note":"","completed":false},
+      {"id":"shop-6","title":"杏仁果禮盒","category":"手信","areaTag":"明洞","note":"回程前一天再買","completed":false}
+    ]
   }
 };

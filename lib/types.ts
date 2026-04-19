@@ -111,10 +111,41 @@ export type PrepData = {
   reminders: string[];
 };
 
+export type ShoppingCategory =
+  | '美妝 / 護膚'
+  | '服飾 / 配件'
+  | '零食 / 食品'
+  | '生活雜貨'
+  | '電子 / 配件'
+  | '手信';
+
+export type ShoppingAreaTag =
+  | '弘大'
+  | '延南'
+  | '聖水'
+  | '明洞'
+  | 'Olive Young'
+  | 'Daiso'
+  | '便利店';
+
+export type ShoppingItem = {
+  id: string;
+  title: string;
+  category: ShoppingCategory;
+  areaTag: ShoppingAreaTag;
+  note: string;
+  completed: boolean;
+};
+
+export type ShoppingData = {
+  items: ShoppingItem[];
+};
+
 export type SeedData = {
   trip: Trip;
   days: ItineraryDay[];
   activities: Activity[];
   bookings: BookingData;
   prep: PrepData;
+  shopping: ShoppingData;
 };
