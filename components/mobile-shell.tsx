@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { BookOpenCheck, CalendarDays, House, ListChecks } from 'lucide-react';
+import { useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
 const nav = [
@@ -12,16 +14,83 @@ const nav = [
   { href: '/prep', label: '準備', icon: ListChecks }
 ];
 
+const SWIPE_THRESHOLD = 70;
+const SWIPE_RATIO = 1.4;
+const IOS_EDGE_GUARD = 24;
+
 export function MobileShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const startedFromEdge = useRef(false);
+
+  const activeIndex = useMemo(() => {
+    const index = nav.findIndex((item) => pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)));
+    return index === -1 ? 0 : index;
+  }, [pathname]);
+
+  const handleTouchStart: React.TouchEventHandler<HTMLElement> = (event) => {
+    const target = event.target as HTMLElement;
+    const scrollable = target.closest('.no-scrollbar');
+    if (scrollable) {
+      touchStart.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+    startedFromEdge.current = touch.clientX <= IOS_EDGE_GUARD;
+  };
+
+  const handleTouchEnd: React.TouchEventHandler<HTMLElement> = (event) => {
+    if (!touchStart.current) return;
+
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - touchStart.current.x;
+    const dy = touch.clientY - touchStart.current.y;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    touchStart.current = null;
+
+    if (absDx < SWIPE_THRESHOLD) return;
+    if (absDx < absDy * SWIPE_RATIO) return;
+
+    if (startedFromEdge.current && dx > 0) return;
+
+    if (dx < 0 && activeIndex < nav.length - 1) {
+      router.push(nav[activeIndex + 1].href);
+      return;
+    }
+
+    if (dx > 0 && activeIndex > 0) {
+      router.push(nav[activeIndex - 1].href);
+    }
+  };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-24 pt-6">
-      {children}
+    <main
+      className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-24 pt-6"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={pathname}
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -16 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="flex-1"
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
+
       <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
         <ul className="grid grid-cols-4 gap-2">
           {nav.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+            const active = pathname === href || (href !== '/' && pathname.startsWith(href));
             return (
               <li key={href}>
                 <Link
