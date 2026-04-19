@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BookOpenCheck, CalendarDays, House, ListChecks } from 'lucide-react';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -18,16 +18,49 @@ const SWIPE_THRESHOLD = 70;
 const SWIPE_RATIO = 1.4;
 const IOS_EDGE_GUARD = 24;
 
+const pageSlideVariants = {
+  enter: (direction: number) => ({
+    x: direction >= 0 ? 48 : -48,
+    opacity: 0.85
+  }),
+  center: {
+    x: 0,
+    opacity: 1
+  },
+  exit: (direction: number) => ({
+    x: direction >= 0 ? -48 : 48,
+    opacity: 0.85
+  })
+};
+
 export function MobileShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const startedFromEdge = useRef(false);
+  const [direction, setDirection] = useState(0);
+  const prevIndexRef = useRef(0);
 
   const activeIndex = useMemo(() => {
     const index = nav.findIndex((item) => pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)));
     return index === -1 ? 0 : index;
   }, [pathname]);
+
+  const activeRouteKey = nav[activeIndex]?.href ?? '/';
+
+  useEffect(() => {
+    const previous = prevIndexRef.current;
+    if (previous !== activeIndex) {
+      setDirection(activeIndex > previous ? 1 : -1);
+      prevIndexRef.current = activeIndex;
+    }
+  }, [activeIndex]);
+
+  const navigateToIndex = (nextIndex: number) => {
+    if (nextIndex < 0 || nextIndex > nav.length - 1 || nextIndex === activeIndex) return;
+    setDirection(nextIndex > activeIndex ? 1 : -1);
+    router.push(nav[nextIndex].href);
+  };
 
   const handleTouchStart: React.TouchEventHandler<HTMLElement> = (event) => {
     const target = event.target as HTMLElement;
@@ -55,17 +88,14 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
 
     if (absDx < SWIPE_THRESHOLD) return;
     if (absDx < absDy * SWIPE_RATIO) return;
-
     if (startedFromEdge.current && dx > 0) return;
 
-    if (dx < 0 && activeIndex < nav.length - 1) {
-      router.push(nav[activeIndex + 1].href);
+    if (dx < 0) {
+      navigateToIndex(activeIndex + 1);
       return;
     }
 
-    if (dx > 0 && activeIndex > 0) {
-      router.push(nav[activeIndex - 1].href);
-    }
+    navigateToIndex(activeIndex - 1);
   };
 
   return (
@@ -74,13 +104,15 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <AnimatePresence mode="wait" initial={false}>
+      <AnimatePresence mode="wait" initial={false} custom={direction}>
         <motion.div
-          key={pathname}
-          initial={{ opacity: 0, x: 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -16 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
+          key={activeRouteKey}
+          custom={direction}
+          variants={pageSlideVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           className="flex-1"
         >
           {children}
@@ -89,12 +121,13 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
 
       <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
         <ul className="grid grid-cols-4 gap-2">
-          {nav.map(({ href, label, icon: Icon }) => {
+          {nav.map(({ href, label, icon: Icon }, index) => {
             const active = pathname === href || (href !== '/' && pathname.startsWith(href));
             return (
               <li key={href}>
                 <Link
                   href={href}
+                  onClick={() => setDirection(index > activeIndex ? 1 : -1)}
                   className={cn(
                     'flex h-12 items-center justify-center gap-1 rounded-xl text-sm font-medium transition',
                     active ? 'bg-[var(--balance-bluegrey-deep)] text-[var(--bg-card)]' : 'text-[var(--text-secondary)]'
