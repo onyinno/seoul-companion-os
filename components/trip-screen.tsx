@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { MapPin, Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, MapPin, Plus } from 'lucide-react';
 import { formatDate, weatherLabel } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
@@ -40,6 +40,17 @@ export function TripScreen() {
     () => activities.filter((activity) => activity.dayId === selectedDay.id).sort((a, b) => a.order - b.order),
     [activities, selectedDay.id]
   );
+
+  useEffect(() => {
+    if (!deletingActivity) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [deletingActivity]);
 
   const handleCloseSheet = () => {
     setIsSheetOpen(false);
@@ -126,24 +137,33 @@ export function TripScreen() {
               </div>
 
               <p className="mt-3 text-right text-sm font-medium text-slate-700">預計花費：₩{activity.cost.toLocaleString()}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button
-                  onClick={() => {
-                    setEditingActivity(activity);
-                    setIsSheetOpen(true);
-                  }}
-                  className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
-                >
-                  編輯
-                </Button>
-                <Button
-                  onClick={() => setDeletingActivity(activity)}
-                  className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700"
-                >
-                  刪除
-                </Button>
-                <Button onClick={() => moveActivityUp(activity.id)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs">上移</Button>
-                <Button onClick={() => moveActivityDown(activity.id)} className="rounded-lg border border-slate-300 px-2 py-1 text-xs">下移</Button>
+
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setEditingActivity(activity);
+                      setIsSheetOpen(true);
+                    }}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs"
+                  >
+                    編輯
+                  </Button>
+                  <Button
+                    onClick={() => setDeletingActivity(activity)}
+                    className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-700"
+                  >
+                    刪除
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1 text-slate-400">
+                  <Button onClick={() => moveActivityUp(activity.id)} className="rounded-lg border border-slate-200 p-1.5 text-slate-500" aria-label="上移排序">
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button onClick={() => moveActivityDown(activity.id)} className="rounded-lg border border-slate-200 p-1.5 text-slate-500" aria-label="下移排序">
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             </li>
           ))}
@@ -171,12 +191,15 @@ export function TripScreen() {
       />
 
       {deletingActivity && (
-        <div className="fixed inset-0 z-[70] bg-slate-900/40">
-          <button className="h-full w-full" aria-label="關閉刪除確認" onClick={() => setDeletingActivity(null)} />
+        <div className="fixed inset-0 z-[70] bg-slate-900/50">
           <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-4 shadow-soft">
             <h3 className="text-lg font-semibold">確認刪除活動？</h3>
-            <p className="mt-1 text-sm text-slate-600">{deletingActivity.time} · {deletingActivity.title}</p>
-            <p className="text-sm text-slate-500">刪除後將無法復原。</p>
+            <div className="mt-2 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+              <p>分類：{categoryLabel[deletingActivity.category]}</p>
+              <p className="mt-1">時間：{deletingActivity.time}</p>
+              <p className="mt-1">地點：{deletingActivity.place}</p>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">刪除後將無法復原，請再次確認是否為目標活動。</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <Button onClick={() => setDeletingActivity(null)} className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-700">取消</Button>
               <Button onClick={handleConfirmDelete} className="rounded-xl bg-red-600 px-4 py-3 text-white">確認刪除</Button>

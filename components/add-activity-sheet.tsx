@@ -1,7 +1,7 @@
 'use client';
 
 import { type FormEvent, useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { CheckCircle2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Activity, ActivityCategory } from '@/lib/types';
 
@@ -41,15 +41,26 @@ const defaultForm = {
   cost: '0'
 };
 
+type FormErrors = {
+  place?: string;
+  note?: string;
+  cost?: string;
+};
+
 export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, onSubmit }: AddActivitySheetProps) {
   const [category, setCategory] = useState<ActivityCategory>(defaultForm.category);
   const [time, setTime] = useState(defaultForm.time);
   const [place, setPlace] = useState(defaultForm.place);
   const [note, setNote] = useState(defaultForm.note);
   const [cost, setCost] = useState(defaultForm.cost);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     if (!open) return;
+
+    setErrors({});
+    setSuccessMessage('');
 
     if (mode === 'edit' && initialActivity) {
       setCategory(initialActivity.category);
@@ -74,7 +85,20 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
 
     const trimmedPlace = place.trim();
     const trimmedNote = note.trim();
-    if (!trimmedPlace || !trimmedNote) return;
+    const parsedCost = Number(cost || 0);
+
+    const nextErrors: FormErrors = {};
+
+    if (!trimmedPlace) nextErrors.place = '請填寫地點名稱。';
+    if (!trimmedNote) nextErrors.note = '請填寫備註內容。';
+    if (!Number.isFinite(parsedCost) || parsedCost < 0) nextErrors.cost = '花費不可為負數。';
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    setErrors({});
 
     onSubmit({
       dayId,
@@ -82,10 +106,13 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
       time,
       place: trimmedPlace,
       note: trimmedNote,
-      cost: Number(cost || 0)
+      cost: parsedCost
     });
 
-    onClose();
+    setSuccessMessage(mode === 'edit' ? '已更新活動內容' : '已新增活動');
+    window.setTimeout(() => {
+      onClose();
+    }, 700);
   };
 
   return (
@@ -98,6 +125,13 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
             <X className="h-4 w-4" />
           </Button>
         </header>
+
+        {successMessage && (
+          <div className="mb-3 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            <CheckCircle2 className="h-4 w-4" />
+            {successMessage}
+          </div>
+        )}
 
         <form className="space-y-3" onSubmit={handleSubmit}>
           <label className="block space-y-1 text-sm">
@@ -133,9 +167,13 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
               type="text"
               className="w-full rounded-xl border border-slate-300 px-3 py-2"
               value={place}
-              onChange={(e) => setPlace(e.target.value)}
+              onChange={(e) => {
+                setPlace(e.target.value);
+                if (errors.place) setErrors((prev) => ({ ...prev, place: undefined }));
+              }}
               required
             />
+            {errors.place && <p className="text-xs text-red-600">{errors.place}</p>}
           </label>
 
           <label className="block space-y-1 text-sm">
@@ -143,9 +181,13 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
             <textarea
               className="min-h-20 w-full rounded-xl border border-slate-300 px-3 py-2"
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(e) => {
+                setNote(e.target.value);
+                if (errors.note) setErrors((prev) => ({ ...prev, note: undefined }));
+              }}
               required
             />
+            {errors.note && <p className="text-xs text-red-600">{errors.note}</p>}
           </label>
 
           <label className="block space-y-1 text-sm">
@@ -155,8 +197,12 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
               min={0}
               className="w-full rounded-xl border border-slate-300 px-3 py-2"
               value={cost}
-              onChange={(e) => setCost(e.target.value)}
+              onChange={(e) => {
+                setCost(e.target.value);
+                if (errors.cost) setErrors((prev) => ({ ...prev, cost: undefined }));
+              }}
             />
+            {errors.cost && <p className="text-xs text-red-600">{errors.cost}</p>}
           </label>
 
           <div className="grid grid-cols-2 gap-2 pt-2">
