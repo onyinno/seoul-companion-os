@@ -69,5 +69,55 @@ export const seoulSeedData: SeedData = {
 
     {"id":"a-8-1","dayId":"day-8","title":"Hongdae 附近早午餐","category":"food","time":"09:30","place":"Hongdae","note":"去機場前留喺附近，唔好走太遠。","cost":0,"order":1},
     {"id":"a-8-2","dayId":"day-8","title":"由酒店前往機場","category":"transport","time":"11:30","place":"Hongik Univ. Station → Airport","note":"由 Hongik Univ. Station 乘機場線前往。","cost":0,"order":2}
-  ]
+  ],
+  "bookings": {
+    "flights": [
+      {
+        "id": "flight-outbound",
+        "tripType": "outbound",
+        "routeTitle": "香港往首爾",
+        "date": "2026-05-24",
+        "departureTime": "09:45",
+        "arrivalTime": "14:25",
+        "departureAirport": "香港國際機場",
+        "departureTerminal": "T1",
+        "arrivalAirport": "仁川國際機場",
+        "arrivalTerminal": "T1",
+        "flightNumber": "UO630",
+        "bookingRef": "WG7JJE",
+        "duration": "3小時40分"
+      },
+      {
+        "id": "flight-return",
+        "tripType": "return",
+        "routeTitle": "首爾往香港",
+        "date": "2026-05-31",
+        "departureTime": "15:25",
+        "arrivalTime": "18:15",
+        "departureAirport": "仁川國際機場",
+        "departureTerminal": "T1",
+        "arrivalAirport": "香港國際機場",
+        "arrivalTerminal": "T1",
+        "flightNumber": "UO631",
+        "bookingRef": "B71Z3Z",
+        "duration": "3小時50分"
+      }
+    ],
+    "accommodation": {
+      "id": "stay-maple-mansion-hongdae",
+      "name": "Maple Mansion Hongdae",
+      "checkInDate": "2026-05-24",
+      "checkOutDate": "2026-05-31",
+      "address": "11, World Cup buk-ro 6-gil, Mapo-gu, Seoul, 南韓",
+      "note": "入住前可先寄放行李；退房日請預留前往機場時間。"
+    },
+    "clinic": {
+      "id": "clinic-ppeum-hongdae",
+      "clinicName": "PPEUM Global Clinic Hongdae",
+      "date": "2026-05-30",
+      "time": "14:00",
+      "address": "4th, H-Cube building, 140 Yanghwa-ro, floor, Mapo-gu, Seoul, 南韓",
+      "note": "建議提前 15 分鐘到達並攜帶護照或身分證明文件。"
+    }
+  }
 };

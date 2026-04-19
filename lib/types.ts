@@ -50,8 +50,49 @@ export type Activity = {
   order: number;
 };
 
+export type FlightBooking = {
+  id: string;
+  tripType: 'outbound' | 'return';
+  routeTitle: string;
+  date: string;
+  departureTime: string;
+  arrivalTime: string;
+  departureAirport: string;
+  departureTerminal: string;
+  arrivalAirport: string;
+  arrivalTerminal: string;
+  flightNumber: string;
+  bookingRef: string;
+  duration: string;
+};
+
+export type AccommodationBooking = {
+  id: string;
+  name: string;
+  checkInDate: string;
+  checkOutDate: string;
+  address: string;
+  note: string;
+};
+
+export type ClinicBooking = {
+  id: string;
+  clinicName: string;
+  date: string;
+  time: string;
+  address: string;
+  note: string;
+};
+
+export type BookingData = {
+  flights: FlightBooking[];
+  accommodation: AccommodationBooking;
+  clinic: ClinicBooking;
+};
+
 export type SeedData = {
   trip: Trip;
   days: ItineraryDay[];
   activities: Activity[];
+  bookings: BookingData;
 };

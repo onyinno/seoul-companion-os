@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { seoulSeedData } from '@/lib/seed';
-import type { Activity, ActivityCategory, ItineraryDay, Trip } from '@/lib/types';
+import type { Activity, ActivityCategory, BookingData, ItineraryDay, Trip } from '@/lib/types';
 
 type ActivityInput = {
   dayId: string;
@@ -18,6 +18,7 @@ type TripState = {
   trip: Trip;
   days: ItineraryDay[];
   activities: Activity[];
+  bookings: BookingData;
   selectedDayId: string;
   seedData: () => void;
   selectDay: (dayId: string) => void;
@@ -33,6 +34,7 @@ const initialState = {
   trip: seoulSeedData.trip,
   days: seoulSeedData.days,
   activities: seoulSeedData.activities,
+  bookings: seoulSeedData.bookings,
   selectedDayId: seoulSeedData.days[0].id
 };
 
@@ -160,7 +162,7 @@ export const useTripStore = create<TripState>()(
     }),
     {
       name: 'seoul-companion-v1',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage)
     }
   )
