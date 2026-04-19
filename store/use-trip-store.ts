@@ -38,6 +38,7 @@ type TripState = {
   moveActivityDown: (activityId: string) => void;
   togglePrepItem: (itemId: string) => void;
   addPrepItem: (input: PrepInput) => void;
+  removePrepItem: (itemId: string) => void;
 };
 
 const initialState = {
@@ -192,6 +193,10 @@ export const useTripStore = create<TripState>()(
             completed: false
           }
         ];
+        set({ prepItems });
+      },
+      removePrepItem: (itemId) => {
+        const prepItems = get().prepItems.filter((item) => item.id !== itemId);
         set({ prepItems });
       }
     }),
