@@ -3,12 +3,6 @@
 import { Building2, CalendarRange, Clock3, PlaneTakeoff, Stethoscope } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
-import { cn } from '@/lib/utils';
-
-const ticketTone: Record<'outbound' | 'return', string> = {
-  outbound: 'from-slate-900 to-slate-700 text-white',
-  return: 'from-slate-800 to-slate-600 text-white'
-};
 
 export function BookingsScreen() {
   const { bookings } = useTripStore();
@@ -23,42 +17,65 @@ export function BookingsScreen() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-slate-500">機票</h2>
         {bookings.flights.map((flight) => (
-          <article key={flight.id} className={cn('overflow-hidden rounded-3xl bg-gradient-to-br p-4 shadow-soft', ticketTone[flight.tripType])}>
-            <div className="flex items-center justify-between text-xs/5 text-white/80">
-              <p>{flight.routeTitle}</p>
-              <p>{formatDate(flight.date)}</p>
+          <article key={flight.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft">
+            <div className="flex items-center justify-between bg-rose-500 px-4 py-2.5 text-white">
+              <p className="text-[11px] font-medium tracking-[0.16em]">SEOUL COMPANION AIR</p>
+              <p className="text-xs font-semibold tracking-[0.18em]">BOARDING PASS</p>
             </div>
 
-            <div className="mt-3 rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
-              <div className="flex items-start justify-between gap-3">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs text-slate-600">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium text-slate-700">{flight.routeTitle}</p>
+                <p>{formatDate(flight.date)}</p>
+              </div>
+            </div>
+
+            <div className="px-4 py-3">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2">
                 <div>
-                  <p className="text-3xl font-semibold leading-none">{flight.departureTime}</p>
-                  <p className="mt-2 text-sm text-white/85">{flight.departureAirport} {flight.departureTerminal}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">出發</p>
+                  <p className="mt-1 text-3xl font-semibold leading-none text-slate-900">{flight.departureTime}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700">{flight.departureAirport}</p>
+                  <p className="text-xs text-slate-500">{flight.departureTerminal}</p>
                 </div>
 
-                <div className="mt-1 flex min-w-[92px] flex-1 flex-col items-center px-2">
-                  <p className="text-[11px] text-white/75">{flight.duration}</p>
-                  <div className="my-1.5 flex w-full items-center gap-1.5">
-                    <div className="h-px flex-1 bg-white/50" />
-                    <PlaneTakeoff className="h-3.5 w-3.5" />
-                    <div className="h-px flex-1 bg-white/50" />
+                <div className="mt-5 flex min-w-[84px] flex-col items-center">
+                  <p className="text-[11px] text-slate-500">{flight.duration}</p>
+                  <div className="my-1 flex w-full items-center gap-1.5">
+                    <span className="h-px flex-1 bg-slate-300" />
+                    <PlaneTakeoff className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="h-px flex-1 bg-slate-300" />
                   </div>
-                  <p className="text-[11px] text-white/75">直航</p>
+                  <p className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">直航</p>
                 </div>
 
                 <div className="text-right">
-                  <p className="text-3xl font-semibold leading-none">{flight.arrivalTime}</p>
-                  <p className="mt-2 text-sm text-white/85">{flight.arrivalAirport} {flight.arrivalTerminal}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-slate-500">到達</p>
+                  <p className="mt-1 text-3xl font-semibold leading-none text-slate-900">{flight.arrivalTime}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-700">{flight.arrivalAirport}</p>
+                  <p className="text-xs text-slate-500">{flight.arrivalTerminal}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative border-t border-dashed border-slate-300 px-4 py-3">
+              <span className="absolute -left-3 top-0 h-6 w-6 -translate-y-1/2 rounded-full bg-slate-100" />
+              <span className="absolute -right-3 top-0 h-6 w-6 -translate-y-1/2 rounded-full bg-slate-100" />
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p className="text-[10px] tracking-wide text-slate-500">航班號碼</p>
+                  <p className="mt-1 font-semibold text-slate-900">{flight.flightNumber}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] tracking-wide text-slate-500">訂位代號</p>
+                  <p className="mt-1 font-semibold text-slate-900">{flight.bookingRef}</p>
                 </div>
               </div>
 
-              <div className="relative mt-4 border-t border-dashed border-white/40 pt-3 text-xs text-white/80">
-                <span className="absolute -left-7 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-slate-100" />
-                <span className="absolute -right-7 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-slate-100" />
-                <div className="flex items-center justify-between">
-                  <p>航班號碼：{flight.flightNumber}</p>
-                  <p>訂位代號：{flight.bookingRef}</p>
-                </div>
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+                <p className="text-[10px] tracking-[0.22em] text-slate-400">0123456789</p>
+                <p className="text-[10px] text-slate-500">電子登機證</p>
               </div>
             </div>
           </article>
