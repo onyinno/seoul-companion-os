@@ -28,7 +28,7 @@ const categoryFromActivity: Record<string, BudgetCategory> = {
 };
 
 export function BudgetScreen() {
-  const { trip, activities, setTotalBudget } = useTripStore();
+  const { trip, activities, shoppingItems, setTotalBudget } = useTripStore();
   const [editingBudget, setEditingBudget] = useState(String(trip.totalBudget));
 
   const spentByCategory = useMemo(() => {
@@ -39,8 +39,22 @@ export function BudgetScreen() {
       summary[category] += Math.max(0, activity.cost || 0);
     }
 
+    const shoppingActual = shoppingItems
+      .filter((item) => item.completed)
+      .reduce((acc, item) => acc + Math.max(0, item.actualCost || 0), 0);
+    summary['購物'] += shoppingActual;
+
     return summary;
-  }, [activities]);
+  }, [activities, shoppingItems]);
+
+  const estimatedShoppingSpend = useMemo(
+    () => shoppingItems.reduce((acc, item) => acc + Math.max(0, item.estimatedCost || 0), 0),
+    [shoppingItems]
+  );
+  const actualShoppingSpend = useMemo(
+    () => shoppingItems.filter((item) => item.completed).reduce((acc, item) => acc + Math.max(0, item.actualCost || 0), 0),
+    [shoppingItems]
+  );
 
   const totalSpent = useMemo(
     () => budgetCategories.reduce((acc, category) => acc + spentByCategory[category], 0),
@@ -80,7 +94,7 @@ export function BudgetScreen() {
     <div className="space-y-4">
       <header>
         <h1 className="text-2xl font-semibold">預算</h1>
-        <p className="text-sm text-[var(--text-muted)]">根據行程活動花費自動統計，簡潔掌握首爾旅費節奏。</p>
+        <p className="text-sm text-[var(--text-muted)]">行程花費 + 購物金額整合統計，簡潔掌握首爾旅費節奏。</p>
       </header>
 
       <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
@@ -119,6 +133,14 @@ export function BudgetScreen() {
             儲存
           </button>
         </form>
+      </section>
+
+      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+        <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">購物預算追蹤</h2>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <StatCard label="購物預估" value={`₩${estimatedShoppingSpend.toLocaleString()}`} />
+          <StatCard label="購物實際（已買）" value={`₩${actualShoppingSpend.toLocaleString()}`} />
+        </div>
       </section>
 
       <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">

@@ -40,6 +40,8 @@ type ShoppingInput = {
   category: ShoppingCategory;
   areaTag: ShoppingAreaTag;
   note: string;
+  estimatedCost: number;
+  actualCost: number;
 };
 
 type TripState = {
@@ -66,6 +68,7 @@ type TripState = {
   removePrepItem: (itemId: string) => void;
   toggleShoppingItem: (itemId: string) => void;
   addShoppingItem: (input: ShoppingInput) => void;
+  updateShoppingItem: (itemId: string, input: ShoppingInput) => void;
   removeShoppingItem: (itemId: string) => void;
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontSizeLevel: (fontSizeLevel: FontSizeLevel) => void;
@@ -249,7 +252,7 @@ export const useTripStore = create<TripState>()(
         });
         set({ shoppingItems });
       },
-      addShoppingItem: ({ title, category, areaTag, note }) => {
+      addShoppingItem: ({ title, category, areaTag, note, estimatedCost, actualCost }) => {
         const trimmedTitle = title.trim();
         if (!trimmedTitle) return;
         const trimmedNote = note.trim();
@@ -261,9 +264,29 @@ export const useTripStore = create<TripState>()(
             category,
             areaTag,
             note: trimmedNote,
+            estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
+            actualCost: Math.max(0, Math.round(actualCost || 0)),
             completed: false
           }
         ];
+        set({ shoppingItems });
+      },
+      updateShoppingItem: (itemId, { title, category, areaTag, note, estimatedCost, actualCost }) => {
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) return;
+        const trimmedNote = note.trim();
+        const shoppingItems = get().shoppingItems.map((item) => {
+          if (item.id !== itemId) return item;
+          return {
+            ...item,
+            title: trimmedTitle,
+            category,
+            areaTag,
+            note: trimmedNote,
+            estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
+            actualCost: Math.max(0, Math.round(actualCost || 0))
+          };
+        });
         set({ shoppingItems });
       },
       removeShoppingItem: (itemId) => {
@@ -285,7 +308,7 @@ export const useTripStore = create<TripState>()(
     }),
     {
       name: 'seoul-companion-v1',
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => localStorage)
     }
   )

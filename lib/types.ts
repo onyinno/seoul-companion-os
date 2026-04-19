@@ -135,6 +135,8 @@ export type ShoppingItem = {
   category: ShoppingCategory;
   areaTag: ShoppingAreaTag;
   note: string;
+  estimatedCost: number;
+  actualCost: number;
   completed: boolean;
 };
 
