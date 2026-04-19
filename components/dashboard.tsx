@@ -40,23 +40,29 @@ export function DashboardScreen() {
           </div>
         </motion.section>
 
-        <section className="rounded-3xl bg-slate-50 p-5 shadow-soft">
+        <section className="rounded-3xl bg-slate-50 p-4 shadow-soft">
           <div className="flex items-center gap-2 text-sm text-slate-600"><CloudSun className="h-4 w-4" /> 天氣</div>
-          <p className="mt-3 text-sm text-slate-500">{todayDay.title}</p>
-          <p className="mt-1 text-lg font-medium text-slate-800">{weatherLabel(todayDay.weather.condition)} · {todayDay.weather.minC}° / {todayDay.weather.maxC}°</p>
+          <div className="mt-2 space-y-2">
+            <p className="text-sm text-slate-500">{formatDate(todayDay.date)} · {todayDay.title}</p>
+            <p className="text-base font-semibold text-slate-900">{weatherLabel(todayDay.weather.condition)} {todayDay.weather.minC}° / {todayDay.weather.maxC}°</p>
+          </div>
         </section>
 
-        <section className="rounded-3xl bg-slate-50 p-5 shadow-soft">
+        <section className="rounded-3xl bg-slate-50 p-4 shadow-soft">
           <h2 className="text-base font-medium text-slate-800">今日行程</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {todayActivities.map((item) => (
-              <li key={item.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                <p className="font-medium">{item.time} · {item.title}</p>
-                <p className="text-slate-500">{item.place}</p>
-                <p className="text-xs text-slate-500">預計花費：₩{item.cost.toLocaleString()}</p>
-              </li>
-            ))}
-          </ul>
+          {todayActivities.length === 0 ? (
+            <p className="mt-2 text-sm text-slate-500">今日尚未安排活動</p>
+          ) : (
+            <ul className="mt-2 space-y-2 text-sm">
+              {todayActivities.map((item) => (
+                <li key={item.id} className="rounded-2xl border border-slate-200 bg-white p-3">
+                  <p className="font-medium text-slate-900">{item.time} {item.title}</p>
+                  <p className="mt-1 text-slate-500">{item.place}</p>
+                  <p className="mt-1 text-xs text-slate-500">預計花費：₩{item.cost.toLocaleString()}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="grid grid-cols-3 gap-2">
