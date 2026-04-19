@@ -50,8 +50,71 @@ export type Activity = {
   order: number;
 };
 
+export type FlightBooking = {
+  id: string;
+  tripType: 'outbound' | 'return';
+  routeTitle: string;
+  date: string;
+  departureTime: string;
+  arrivalTime: string;
+  departureAirport: string;
+  departureTerminal: string;
+  arrivalAirport: string;
+  arrivalTerminal: string;
+  flightNumber: string;
+  bookingRef: string;
+  duration: string;
+};
+
+export type AccommodationBooking = {
+  id: string;
+  name: string;
+  checkInDate: string;
+  checkOutDate: string;
+  address: string;
+  note: string;
+};
+
+export type ClinicBooking = {
+  id: string;
+  clinicName: string;
+  date: string;
+  time: string;
+  address: string;
+  note: string;
+};
+
+export type BookingData = {
+  flights: FlightBooking[];
+  accommodation: AccommodationBooking;
+  clinic: ClinicBooking;
+};
+
+export type PrepCategory =
+  | '文件 / 財務'
+  | '電子 / 工具'
+  | '服飾 / 穿搭'
+  | '盥洗 / 個人護理'
+  | '醫療 / 健康 / 私人物品'
+  | '日用品 / 雜項';
+
+export type PrepChecklistItem = {
+  id: string;
+  title: string;
+  category: PrepCategory;
+  note: string;
+  completed: boolean;
+};
+
+export type PrepData = {
+  items: PrepChecklistItem[];
+  reminders: string[];
+};
+
 export type SeedData = {
   trip: Trip;
   days: ItineraryDay[];
   activities: Activity[];
+  bookings: BookingData;
+  prep: PrepData;
 };

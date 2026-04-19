@@ -69,5 +69,117 @@ export const seoulSeedData: SeedData = {
 
     {"id":"a-8-1","dayId":"day-8","title":"Hongdae 附近早午餐","category":"food","time":"09:30","place":"Hongdae","note":"去機場前留喺附近，唔好走太遠。","cost":0,"order":1},
     {"id":"a-8-2","dayId":"day-8","title":"由酒店前往機場","category":"transport","time":"11:30","place":"Hongik Univ. Station → Airport","note":"由 Hongik Univ. Station 乘機場線前往。","cost":0,"order":2}
-  ]
+  ],
+  "bookings": {
+    "flights": [
+      {
+        "id": "flight-outbound",
+        "tripType": "outbound",
+        "routeTitle": "香港往首爾",
+        "date": "2026-05-24",
+        "departureTime": "09:45",
+        "arrivalTime": "14:25",
+        "departureAirport": "香港國際機場",
+        "departureTerminal": "T1",
+        "arrivalAirport": "仁川國際機場",
+        "arrivalTerminal": "T1",
+        "flightNumber": "UO630",
+        "bookingRef": "WG7JJE",
+        "duration": "3小時40分"
+      },
+      {
+        "id": "flight-return",
+        "tripType": "return",
+        "routeTitle": "首爾往香港",
+        "date": "2026-05-31",
+        "departureTime": "15:25",
+        "arrivalTime": "18:15",
+        "departureAirport": "仁川國際機場",
+        "departureTerminal": "T1",
+        "arrivalAirport": "香港國際機場",
+        "arrivalTerminal": "T1",
+        "flightNumber": "UO631",
+        "bookingRef": "B71Z3Z",
+        "duration": "3小時50分"
+      }
+    ],
+    "accommodation": {
+      "id": "stay-maple-mansion-hongdae",
+      "name": "Maple Mansion Hongdae",
+      "checkInDate": "2026-05-24",
+      "checkOutDate": "2026-05-31",
+      "address": "11, World Cup buk-ro 6-gil, Mapo-gu, Seoul, 南韓",
+      "note": "入住前可先寄放行李；退房日請預留前往機場時間。"
+    },
+    "clinic": {
+      "id": "clinic-ppeum-hongdae",
+      "clinicName": "PPEUM Global Clinic Hongdae",
+      "date": "2026-05-30",
+      "time": "14:00",
+      "address": "4th, H-Cube building, 140 Yanghwa-ro, floor, Mapo-gu, Seoul, 南韓",
+      "note": "建議提前 15 分鐘到達並攜帶護照或身分證明文件。"
+    }
+  },
+  "prep": {
+    "items": [
+      {"id":"prep-doc-1","title":"Passport / 證件","category":"文件 / 財務","note":"","completed":false},
+      {"id":"prep-doc-2","title":"保險","category":"文件 / 財務","note":"","completed":false},
+      {"id":"prep-doc-3","title":"海外提款 / 現金","category":"文件 / 財務","note":"每日預算參考 HKD 1000","completed":false},
+      {"id":"prep-doc-4","title":"鎖 / 鎖匙","category":"文件 / 財務","note":"","completed":false},
+      {"id":"prep-doc-5","title":"筆","category":"文件 / 財務","note":"","completed":false},
+
+      {"id":"prep-ele-1","title":"SIM card + 針","category":"電子 / 工具","note":"","completed":false},
+      {"id":"prep-ele-2","title":"耳筒 / 喇叭","category":"電子 / 工具","note":"","completed":false},
+      {"id":"prep-ele-3","title":"轉插 / 插頭 / 拖板 / 尿袋 / 電線 / HDMI","category":"電子 / 工具","note":"","completed":false},
+      {"id":"prep-ele-4","title":"電腦","category":"電子 / 工具","note":"","completed":false},
+      {"id":"prep-ele-5","title":"相機","category":"電子 / 工具","note":"","completed":false},
+      {"id":"prep-ele-6","title":"自拍棍","category":"電子 / 工具","note":"","completed":false},
+      {"id":"prep-ele-7","title":"Music / movie","category":"電子 / 工具","note":"","completed":false},
+      {"id":"prep-ele-8","title":"小夜燈","category":"電子 / 工具","note":"","completed":false},
+
+      {"id":"prep-cloth-1","title":"外套","category":"服飾 / 穿搭","note":"","completed":false},
+      {"id":"prep-cloth-2","title":"訓覺衫褲","category":"服飾 / 穿搭","note":"2 日 1 套","completed":false},
+      {"id":"prep-cloth-3","title":"女朋友安睡褲","category":"服飾 / 穿搭","note":"","completed":false},
+      {"id":"prep-cloth-4","title":"Trousers","category":"服飾 / 穿搭","note":"2 日 1 條","completed":false},
+      {"id":"prep-cloth-5","title":"Underwear / legging","category":"服飾 / 穿搭","note":"每日 1 件","completed":false},
+      {"id":"prep-cloth-6","title":"襪","category":"服飾 / 穿搭","note":"每日 1 對","completed":false},
+      {"id":"prep-cloth-7","title":"Clothes","category":"服飾 / 穿搭","note":"2 日 1 套","completed":false},
+      {"id":"prep-cloth-8","title":"頸巾 / 耳套 / 手套 / 口罩 / 眼罩 / 頸枕","category":"服飾 / 穿搭","note":"","completed":false},
+      {"id":"prep-cloth-9","title":"帽","category":"服飾 / 穿搭","note":"","completed":false},
+      {"id":"prep-cloth-10","title":"泳褲","category":"服飾 / 穿搭","note":"","completed":false},
+      {"id":"prep-cloth-11","title":"皮帶","category":"服飾 / 穿搭","note":"","completed":false},
+      {"id":"prep-cloth-12","title":"拖鞋 / 鞋 / 室內拖","category":"服飾 / 穿搭","note":"","completed":false},
+
+      {"id":"prep-care-1","title":"毛巾","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-2","title":"防曬乳液 / 凡士林 / 保濕乳液 / 潤唇膏","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-3","title":"Hair spray + 梳","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-4","title":"剪刀","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-5","title":"鬚刨 / 指甲鉗","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-6","title":"化妝 / 卸妝","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-7","title":"洗面 / 護膚 / 面膜 / 頭箍","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-8","title":"香水","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-9","title":"Portable stain wipe","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-10","title":"酒精巾","category":"盥洗 / 個人護理","note":"","completed":false},
+      {"id":"prep-care-11","title":"膠布","category":"盥洗 / 個人護理","note":"","completed":false},
+
+      {"id":"prep-med-1","title":"藥","category":"醫療 / 健康 / 私人物品","note":"","completed":false},
+      {"id":"prep-med-2","title":"Supplements","category":"醫療 / 健康 / 私人物品","note":"","completed":false},
+      {"id":"prep-med-3","title":"風扇 / 暖包","category":"醫療 / 健康 / 私人物品","note":"","completed":false},
+      {"id":"prep-med-4","title":"Condom / KY","category":"醫療 / 健康 / 私人物品","note":"","completed":false},
+      {"id":"prep-med-5","title":"糖","category":"醫療 / 健康 / 私人物品","note":"","completed":false},
+
+      {"id":"prep-misc-1","title":"紙巾","category":"日用品 / 雜項","note":"每日 2 包","completed":false},
+      {"id":"prep-misc-2","title":"垃圾袋","category":"日用品 / 雜項","note":"每 5 日 1 份","completed":false},
+      {"id":"prep-misc-3","title":"環保袋","category":"日用品 / 雜項","note":"","completed":false},
+      {"id":"prep-misc-4","title":"折疊傘","category":"日用品 / 雜項","note":"","completed":false},
+      {"id":"prep-misc-5","title":"餐具","category":"日用品 / 雜項","note":"","completed":false},
+      {"id":"prep-misc-6","title":"Board game","category":"日用品 / 雜項","note":"","completed":false}
+    ],
+    "reminders": [
+      "Botox 後避免飲酒",
+      "避免按摩注射部位",
+      "避免大汗與劇烈活動",
+      "保持舒適與清淡"
+    ]
+  }
 };

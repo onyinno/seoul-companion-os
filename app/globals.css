@@ -4,8 +4,26 @@
 
 :root {
   color-scheme: light;
+  --bg-app: #F4F1EC;
+  --bg-surface: #FBF8F4;
+  --bg-card: #FFFDF9;
+  --border-soft: #E5DED5;
+
+  --text-main: #172233;
+  --text-secondary: #6B7890;
+  --text-muted: #94A0B2;
+
+  --accent-primary: #F28F92;
+  --accent-soft: #F8D8D7;
+  --accent-strong: #E5747B;
+
+  --balance-bluegrey: #6F8198;
+  --balance-bluegrey-deep: #475A72;
+  --balance-bluegrey-soft: #D8E1EA;
 }
 
 body {
-  @apply bg-cream text-slate-900 antialiased;
+  background: var(--bg-app);
+  color: var(--text-main);
+  @apply antialiased;
 }
