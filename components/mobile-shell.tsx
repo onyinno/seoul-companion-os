@@ -20,7 +20,7 @@ const IOS_EDGE_GUARD = 24;
 
 const pageSlideVariants = {
   enter: (direction: number) => ({
-    x: direction >= 0 ? 48 : -48,
+    x: direction >= 0 ? 64 : -64,
     opacity: 0.85
   }),
   center: {
@@ -28,7 +28,7 @@ const pageSlideVariants = {
     opacity: 1
   },
   exit: (direction: number) => ({
-    x: direction >= 0 ? -48 : 48,
+    x: direction >= 0 ? -64 : 64,
     opacity: 0.85
   })
 };
@@ -112,7 +112,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
           initial="enter"
           animate="center"
           exit="exit"
-          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
           className="flex-1"
         >
           {children}
