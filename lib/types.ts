@@ -15,6 +15,7 @@ export type Trip = {
   destination: string;
   baseArea: string;
   hotel: string;
+  totalBudget: number;
   startDate: string;
   endDate: string;
   departureDate: string;

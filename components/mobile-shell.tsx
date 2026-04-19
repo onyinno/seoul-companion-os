@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpenCheck, CalendarDays, House, ListChecks, Settings, ShoppingBag } from 'lucide-react';
+import { BookOpenCheck, CalendarDays, CircleDollarSign, House, ListChecks, Settings, ShoppingBag } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ const nav = [
   { href: '/', label: '首頁', icon: House },
   { href: '/trip', label: '行程', icon: CalendarDays },
   { href: '/shopping', label: '購物', icon: ShoppingBag },
+  { href: '/budget', label: '預算', icon: CircleDollarSign },
   { href: '/bookings', label: '預約', icon: BookOpenCheck },
   { href: '/prep', label: '準備', icon: ListChecks },
   { href: '/settings', label: '設定', icon: Settings }
@@ -94,7 +95,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
-        <ul className={cn('grid gap-2', nav.length === 6 ? 'grid-cols-6' : nav.length === 5 ? 'grid-cols-5' : 'grid-cols-4')}>
+        <ul className={cn('grid gap-2', nav.length === 7 ? 'grid-cols-7' : nav.length === 6 ? 'grid-cols-6' : nav.length === 5 ? 'grid-cols-5' : 'grid-cols-4')}>
           {nav.map(({ href, label, icon: Icon }, index) => {
             const active = activeIndex === index;
             return (
@@ -103,7 +104,8 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
                   href={href}
                   onClick={() => setDirection(index > activeIndex ? 1 : -1)}
                   className={cn(
-                    'flex h-12 items-center justify-center gap-1 rounded-xl text-sm font-medium transition',
+                    'flex h-12 items-center justify-center gap-1 rounded-xl font-medium transition',
+                    nav.length >= 7 ? 'text-xs' : 'text-sm',
                     active ? 'bg-[var(--balance-bluegrey-deep)] text-[var(--bg-card)]' : 'text-[var(--text-secondary)]'
                   )}
                 >

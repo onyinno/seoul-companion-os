@@ -55,6 +55,7 @@ type TripState = {
   seedData: () => void;
   selectDay: (dayId: string) => void;
   resetToSeed: () => void;
+  setTotalBudget: (totalBudget: number) => void;
   addActivity: (input: ActivityInput) => void;
   updateActivity: (activityId: string, input: ActivityInput) => void;
   deleteActivity: (activityId: string) => void;
@@ -125,6 +126,10 @@ export const useTripStore = create<TripState>()(
       seedData: () => set({ ...initialState }),
       selectDay: (dayId) => set({ selectedDayId: dayId }),
       resetToSeed: () => set({ ...initialState }),
+      setTotalBudget: (totalBudget) => {
+        const nextBudget = Number.isFinite(totalBudget) ? Math.max(0, Math.round(totalBudget)) : get().trip.totalBudget;
+        set((state) => ({ trip: { ...state.trip, totalBudget: nextBudget } }));
+      },
       addActivity: ({ dayId, category, time, place, note, cost }) => {
         const dayActivities = get().activities.filter((activity) => activity.dayId === dayId);
         const nextId = `activity-${dayId}-${Date.now()}`;

@@ -7,6 +7,7 @@ export const seoulSeedData: SeedData = {
     "destination": "首爾，韓國",
     "baseArea": "Hongdae",
     "hotel": "Maple Mansion Hongdae",
+    "totalBudget": 1200000,
     "startDate": "2026-05-24",
     "endDate": "2026-05-31",
     "departureDate": "2026-05-24",
