@@ -48,23 +48,23 @@ export function DashboardScreen() {
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-3xl border border-amber-100 bg-[#fffaf1] shadow-soft"
+          className="overflow-hidden rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-soft"
         >
           <div className="p-5">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <Plane className="h-4 w-4 text-rose-400" />
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+              <Plane className="h-4 w-4 text-[var(--accent-primary)]" />
               距離出發
             </div>
 
-            <div className="mt-3 flex items-end gap-2 text-rose-400">
+            <div className="mt-3 flex items-end gap-2 text-[var(--accent-primary)]">
               <p className="text-6xl font-semibold leading-none">{remainingDays}</p>
-              <p className="pb-1 text-2xl text-slate-700">天</p>
+              <p className="pb-1 text-2xl text-[var(--text-secondary)]">天</p>
               <p className="pb-1 text-2xl font-semibold tracking-wide">{String(remainingHours).padStart(2, '0')}:{String(remainingMinutes).padStart(2, '0')}:{String(remainingSeconds).padStart(2, '0')}</p>
             </div>
 
             <div className="mt-4">
-              <div className="relative h-2.5 rounded-full bg-amber-100/90">
-                <div className="h-full rounded-full bg-rose-300/90" style={{ width: `${progressRatio * 100}%` }} />
+              <div className="relative h-2.5 rounded-full bg-[var(--accent-soft)]">
+                <div className="h-full rounded-full bg-[var(--accent-primary)]" style={{ width: `${progressRatio * 100}%` }} />
                 <span
                   className="absolute top-1/2 -translate-y-1/2 text-base"
                   style={{ left: `calc(${progressRatio * 100}% - 8px)` }}
@@ -76,30 +76,30 @@ export function DashboardScreen() {
             </div>
           </div>
 
-          <div className="border-t border-amber-100 bg-[#fff6ea] px-5 py-3 text-center">
-            <p className="text-sm font-medium text-slate-700">{formatDate(trip.departureDate)} 出發</p>
+          <div className="border-t border-[var(--border-soft)] bg-[var(--bg-card)] px-5 py-3 text-center">
+            <p className="text-sm font-medium text-[var(--text-secondary)]">{formatDate(trip.departureDate)} 出發</p>
           </div>
         </motion.section>
 
-        <section className="rounded-3xl bg-slate-50 p-4 shadow-soft">
-          <div className="flex items-center gap-2 text-sm text-slate-600"><CloudSun className="h-4 w-4" /> 天氣</div>
+        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-soft">
+          <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]"><CloudSun className="h-4 w-4" /> 天氣</div>
           <div className="mt-2 space-y-2">
-            <p className="text-sm text-slate-500">{formatDate(todayDay.date)} · {todayDay.title}</p>
-            <p className="text-base font-semibold text-slate-900">{weatherLabel(todayDay.weather.condition)} {todayDay.weather.minC}° / {todayDay.weather.maxC}°</p>
+            <p className="text-sm text-[var(--text-muted)]">{formatDate(todayDay.date)} · {todayDay.title}</p>
+            <p className="text-base font-semibold text-[var(--text-main)]">{weatherLabel(todayDay.weather.condition)} {todayDay.weather.minC}° / {todayDay.weather.maxC}°</p>
           </div>
         </section>
 
-        <section className="rounded-3xl bg-slate-50 p-4 shadow-soft">
-          <h2 className="text-base font-medium text-slate-800">今日行程</h2>
+        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-soft">
+          <h2 className="text-base font-medium text-[var(--balance-bluegrey-deep)]">今日行程</h2>
           {todayActivities.length === 0 ? (
-            <p className="mt-2 text-sm text-slate-500">今日尚未安排活動</p>
+            <p className="mt-2 text-sm text-[var(--text-muted)]">今日尚未安排活動</p>
           ) : (
             <ul className="mt-2 space-y-2 text-sm">
               {todayActivities.map((item) => (
-                <li key={item.id} className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="font-medium text-slate-900">{item.time} {item.title}</p>
-                  <p className="mt-1 text-slate-500">{item.place}</p>
-                  <p className="mt-1 text-xs text-slate-500">預計花費：₩{item.cost.toLocaleString()}</p>
+                <li key={item.id} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-3">
+                  <p className="font-medium text-[var(--text-main)]">{item.time} {item.title}</p>
+                  <p className="mt-1 text-[var(--text-muted)]">{item.place}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">預計花費：₩{item.cost.toLocaleString()}</p>
                 </li>
               ))}
             </ul>
@@ -107,11 +107,11 @@ export function DashboardScreen() {
         </section>
 
         <section className="grid grid-cols-3 gap-2">
-          <Button onClick={() => setIsSheetOpen(true)} className="rounded-2xl bg-slate-900 px-3 py-3 text-xs font-medium text-white">
+          <Button onClick={() => setIsSheetOpen(true)} className="rounded-2xl bg-[var(--accent-strong)] px-3 py-3 text-xs font-medium text-[var(--bg-card)]">
             <Plus className="mx-auto mb-1 h-4 w-4" /> 新增
           </Button>
-          <Link href="/trip" className="rounded-2xl bg-white px-3 py-3 text-center text-xs font-medium text-slate-700 shadow-soft">打開行程</Link>
-          <Button onClick={resetToSeed} className="rounded-2xl bg-white px-3 py-3 text-xs font-medium text-slate-700 shadow-soft">重設預設資料</Button>
+          <Link href="/trip" className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-center text-xs font-medium text-[var(--balance-bluegrey-deep)] shadow-soft">打開行程</Link>
+          <Button onClick={resetToSeed} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-xs font-medium text-[var(--balance-bluegrey-deep)] shadow-soft">重設預設資料</Button>
         </section>
       </div>
 

@@ -116,18 +116,18 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-900/40">
+    <div className="fixed inset-0 z-[60] bg-[color:var(--balance-bluegrey-deep)]/40">
       <button className="h-full w-full" aria-label="關閉活動面板" onClick={onClose} />
-      <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl bg-white p-4 shadow-soft">
+      <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
         <header className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{mode === 'edit' ? '編輯活動' : '新增活動'}</h2>
-          <Button onClick={onClose} aria-label="關閉" className="rounded-full p-2 text-slate-600">
+          <Button onClick={onClose} aria-label="關閉" className="rounded-full p-2 text-[var(--text-secondary)]">
             <X className="h-4 w-4" />
           </Button>
         </header>
 
         {successMessage && (
-          <div className="mb-3 flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          <div className="mb-3 flex items-center gap-2 rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent-strong)]">
             <CheckCircle2 className="h-4 w-4" />
             {successMessage}
           </div>
@@ -137,7 +137,7 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
           <label className="block space-y-1 text-sm">
             <span>活動類型</span>
             <select
-              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              className="w-full rounded-xl border border-[var(--border-soft)] px-3 py-2"
               value={category}
               onChange={(e) => setCategory(e.target.value as ActivityCategory)}
               required
@@ -154,7 +154,7 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
             <span>時間</span>
             <input
               type="time"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              className="w-full rounded-xl border border-[var(--border-soft)] px-3 py-2"
               value={time}
               onChange={(e) => setTime(e.target.value)}
               required
@@ -165,7 +165,7 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
             <span>地點名稱</span>
             <input
               type="text"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              className="w-full rounded-xl border border-[var(--border-soft)] px-3 py-2"
               value={place}
               onChange={(e) => {
                 setPlace(e.target.value);
@@ -173,13 +173,13 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
               }}
               required
             />
-            {errors.place && <p className="text-xs text-red-600">{errors.place}</p>}
+            {errors.place && <p className="text-xs text-[var(--accent-strong)]">{errors.place}</p>}
           </label>
 
           <label className="block space-y-1 text-sm">
             <span>備註</span>
             <textarea
-              className="min-h-20 w-full rounded-xl border border-slate-300 px-3 py-2"
+              className="min-h-20 w-full rounded-xl border border-[var(--border-soft)] px-3 py-2"
               value={note}
               onChange={(e) => {
                 setNote(e.target.value);
@@ -187,7 +187,7 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
               }}
               required
             />
-            {errors.note && <p className="text-xs text-red-600">{errors.note}</p>}
+            {errors.note && <p className="text-xs text-[var(--accent-strong)]">{errors.note}</p>}
           </label>
 
           <label className="block space-y-1 text-sm">
@@ -195,21 +195,21 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
             <input
               type="number"
               min={0}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2"
+              className="w-full rounded-xl border border-[var(--border-soft)] px-3 py-2"
               value={cost}
               onChange={(e) => {
                 setCost(e.target.value);
                 if (errors.cost) setErrors((prev) => ({ ...prev, cost: undefined }));
               }}
             />
-            {errors.cost && <p className="text-xs text-red-600">{errors.cost}</p>}
+            {errors.cost && <p className="text-xs text-[var(--accent-strong)]">{errors.cost}</p>}
           </label>
 
           <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button type="button" onClick={onClose} className="rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-700">
+            <Button type="button" onClick={onClose} className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-4 py-3 text-[var(--balance-bluegrey-deep)]">
               取消
             </Button>
-            <Button type="submit" className="rounded-xl bg-slate-900 px-4 py-3 text-white">
+            <Button type="submit" className="rounded-xl bg-[var(--accent-strong)] px-4 py-3 text-[var(--bg-card)]">
               {mode === 'edit' ? '儲存變更' : '儲存'}
             </Button>
           </div>

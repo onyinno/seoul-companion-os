@@ -17,7 +17,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-24 pt-6">
       {children}
-      <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-soft backdrop-blur">
+      <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
         <ul className="grid grid-cols-3 gap-2">
           {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
@@ -27,7 +27,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
                   href={href}
                   className={cn(
                     'flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium transition',
-                    active ? 'bg-slate-900 text-white' : 'text-slate-600'
+                    active ? 'bg-[var(--balance-bluegrey-deep)] text-[var(--bg-card)]' : 'text-[var(--text-secondary)]'
                   )}
                 >
                   <Icon className="h-4 w-4" />
