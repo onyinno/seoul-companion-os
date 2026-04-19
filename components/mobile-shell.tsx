@@ -1,23 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { BookOpenCheck, CalendarDays, House, ListChecks } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { DashboardScreen } from '@/components/dashboard';
-import { TripScreen } from '@/components/trip-screen';
-import { BookingsScreen } from '@/components/bookings-screen';
-import { PrepScreen } from '@/components/prep-screen';
-
-type TopTab = 'home' | 'trip' | 'bookings' | 'prep';
 
 const nav = [
-  { key: 'home' as const, href: '/', label: '首頁', icon: House },
-  { key: 'trip' as const, href: '/trip', label: '行程', icon: CalendarDays },
-  { key: 'bookings' as const, href: '/bookings', label: '預約', icon: BookOpenCheck },
-  { key: 'prep' as const, href: '/prep', label: '準備', icon: ListChecks }
+  { href: '/', label: '首頁', icon: House },
+  { href: '/trip', label: '行程', icon: CalendarDays },
+  { href: '/bookings', label: '預約', icon: BookOpenCheck },
+  { href: '/prep', label: '準備', icon: ListChecks }
 ];
 
 const pageSlideVariants = {
@@ -35,56 +29,33 @@ const pageSlideVariants = {
   })
 };
 
-const tabFromPath = (pathname: string | null): TopTab => {
-  if (!pathname) return 'home';
-  if (pathname.startsWith('/trip')) return 'trip';
-  if (pathname.startsWith('/bookings')) return 'bookings';
-  if (pathname.startsWith('/prep')) return 'prep';
-  return 'home';
+const getTabIndexFromPath = (pathname: string) => {
+  const index = nav.findIndex((item) => pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)));
+  return index === -1 ? 0 : index;
 };
 
-export function MobileShell() {
+export function MobileShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const [activeTab, setActiveTab] = useState<TopTab>(() => tabFromPath(pathname));
   const [direction, setDirection] = useState(0);
+  const prevIndexRef = useRef(0);
 
-  const activeIndex = useMemo(() => nav.findIndex((item) => item.key === activeTab), [activeTab]);
-
-  useEffect(() => {
-    const nextTab = tabFromPath(pathname);
-    if (nextTab === activeTab) return;
-    const nextIndex = nav.findIndex((item) => item.key === nextTab);
-    setDirection(nextIndex > activeIndex ? 1 : -1);
-    setActiveTab(nextTab);
-  }, [pathname, activeTab, activeIndex]);
+  const activeIndex = useMemo(() => getTabIndexFromPath(pathname), [pathname]);
+  const activeRouteKey = nav[activeIndex]?.href ?? '/';
 
   useEffect(() => {
-    const target = nav.find((item) => item.key === activeTab);
-    if (!target || pathname === target.href) return;
-    router.push(target.href);
-  }, [activeTab, pathname, router]);
-
-  const switchTabByIndex = (nextIndex: number) => {
-    if (nextIndex < 0 || nextIndex > nav.length - 1 || nextIndex === activeIndex) return;
-    setDirection(nextIndex > activeIndex ? 1 : -1);
-    setActiveTab(nav[nextIndex].key);
-  };
-
-  const renderActiveScreen = () => {
-    if (activeTab === 'trip') return <TripScreen />;
-    if (activeTab === 'bookings') return <BookingsScreen />;
-    if (activeTab === 'prep') return <PrepScreen />;
-    return <DashboardScreen />;
-  };
+    const previous = prevIndexRef.current;
+    if (previous !== activeIndex) {
+      setDirection(activeIndex > previous ? 1 : -1);
+      prevIndexRef.current = activeIndex;
+    }
+  }, [activeIndex]);
 
   return (
     <main className="mx-auto flex h-screen w-full max-w-md flex-col px-4 pb-24 pt-6">
       <div className="relative flex-1 overflow-hidden">
         <AnimatePresence initial={false} custom={direction}>
           <motion.div
-            key={activeTab}
+            key={activeRouteKey}
             custom={direction}
             variants={pageSlideVariants}
             initial="enter"
@@ -93,23 +64,20 @@ export function MobileShell() {
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="absolute inset-0 overflow-y-auto"
           >
-            {renderActiveScreen()}
+            {children}
           </motion.div>
         </AnimatePresence>
       </div>
 
       <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
         <ul className="grid grid-cols-4 gap-2">
-          {nav.map(({ key, href, label, icon: Icon }, index) => {
-            const active = activeTab === key;
+          {nav.map(({ href, label, icon: Icon }, index) => {
+            const active = activeIndex === index;
             return (
               <li key={href}>
                 <Link
                   href={href}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    switchTabByIndex(index);
-                  }}
+                  onClick={() => setDirection(index > activeIndex ? 1 : -1)}
                   className={cn(
                     'flex h-12 items-center justify-center gap-1 rounded-xl text-sm font-medium transition',
                     active ? 'bg-[var(--balance-bluegrey-deep)] text-[var(--bg-card)]' : 'text-[var(--text-secondary)]'
