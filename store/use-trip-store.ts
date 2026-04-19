@@ -6,14 +6,18 @@ import { seoulSeedData } from '@/lib/seed';
 import type {
   Activity,
   ActivityCategory,
+  AppSettings,
   BookingData,
+  FontSizeLevel,
   ItineraryDay,
   PrepCategory,
   PrepChecklistItem,
   ShoppingAreaTag,
   ShoppingCategory,
   ShoppingItem,
-  Trip
+  ThemeColor,
+  Trip,
+  VisualPreference
 } from '@/lib/types';
 
 type ActivityInput = {
@@ -46,6 +50,7 @@ type TripState = {
   prepItems: PrepChecklistItem[];
   prepReminders: string[];
   shoppingItems: ShoppingItem[];
+  settings: AppSettings;
   selectedDayId: string;
   seedData: () => void;
   selectDay: (dayId: string) => void;
@@ -61,6 +66,10 @@ type TripState = {
   toggleShoppingItem: (itemId: string) => void;
   addShoppingItem: (input: ShoppingInput) => void;
   removeShoppingItem: (itemId: string) => void;
+  setThemeColor: (themeColor: ThemeColor) => void;
+  setFontSizeLevel: (fontSizeLevel: FontSizeLevel) => void;
+  setDarkMode: (darkMode: boolean) => void;
+  setVisualPreference: (visualPreference: VisualPreference) => void;
 };
 
 const initialState = {
@@ -71,6 +80,12 @@ const initialState = {
   prepItems: seoulSeedData.prep.items,
   prepReminders: seoulSeedData.prep.reminders,
   shoppingItems: seoulSeedData.shopping.items,
+  settings: {
+    themeColor: 'seoul' as ThemeColor,
+    fontSizeLevel: 'md' as FontSizeLevel,
+    darkMode: false,
+    visualPreference: 'simple' as VisualPreference
+  },
   selectedDayId: seoulSeedData.days[0].id
 };
 
@@ -249,11 +264,23 @@ export const useTripStore = create<TripState>()(
       removeShoppingItem: (itemId) => {
         const shoppingItems = get().shoppingItems.filter((item) => item.id !== itemId);
         set({ shoppingItems });
+      },
+      setThemeColor: (themeColor) => {
+        set((state) => ({ settings: { ...state.settings, themeColor } }));
+      },
+      setFontSizeLevel: (fontSizeLevel) => {
+        set((state) => ({ settings: { ...state.settings, fontSizeLevel } }));
+      },
+      setDarkMode: (darkMode) => {
+        set((state) => ({ settings: { ...state.settings, darkMode } }));
+      },
+      setVisualPreference: (visualPreference) => {
+        set((state) => ({ settings: { ...state.settings, visualPreference } }));
       }
     }),
     {
       name: 'seoul-companion-v1',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => localStorage)
     }
   )

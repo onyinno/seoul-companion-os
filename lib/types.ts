@@ -141,6 +141,19 @@ export type ShoppingData = {
   items: ShoppingItem[];
 };
 
+export type ThemeColor = 'seoul' | 'rose' | 'mint';
+
+export type FontSizeLevel = 'sm' | 'md' | 'lg';
+
+export type VisualPreference = 'lightweight' | 'simple' | 'comfortable';
+
+export type AppSettings = {
+  themeColor: ThemeColor;
+  fontSizeLevel: FontSizeLevel;
+  darkMode: boolean;
+  visualPreference: VisualPreference;
+};
+
 export type SeedData = {
   trip: Trip;
   days: ItineraryDay[];

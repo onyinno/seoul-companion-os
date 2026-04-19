@@ -22,6 +22,30 @@
   --balance-bluegrey-soft: #D8E1EA;
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-app: #11151c;
+  --bg-surface: #1a202a;
+  --bg-card: #202734;
+  --border-soft: #2f3a4d;
+
+  --text-main: #edf3fb;
+  --text-secondary: #c2cee0;
+  --text-muted: #9eabc2;
+}
+
+:root[data-accent='rose'] {
+  --accent-primary: #ef9aa5;
+  --accent-soft: #f8dce1;
+  --accent-strong: #d96b7d;
+}
+
+:root[data-accent='mint'] {
+  --accent-primary: #7eb8b0;
+  --accent-soft: #d5ebe8;
+  --accent-strong: #4f8f87;
+}
+
 body {
   background: var(--bg-app);
   color: var(--text-main);
