@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
 import { formatDate, weatherLabel } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,16 @@ const categoryLabel: Record<ActivityCategory, string> = {
   transport: '交通',
   hotel: '住宿',
   other: '其他'
+};
+
+const categoryBadgeClass: Record<ActivityCategory, string> = {
+  food: 'bg-amber-50 text-amber-700',
+  cafe: 'bg-orange-50 text-orange-700',
+  sightseeing: 'bg-sky-50 text-sky-700',
+  shopping: 'bg-rose-50 text-rose-700',
+  transport: 'bg-indigo-50 text-indigo-700',
+  hotel: 'bg-emerald-50 text-emerald-700',
+  other: 'bg-slate-100 text-slate-600'
 };
 
 export function TripScreen() {
@@ -97,11 +107,25 @@ export function TripScreen() {
         <ul className="space-y-3">
           {dayActivities.map((activity) => (
             <li key={activity.id} className="rounded-2xl bg-white p-4 shadow-soft">
-              <p className="text-xs uppercase tracking-wide text-slate-500">{categoryLabel[activity.category]}</p>
-              <p className="mt-1 font-medium">{activity.time} · {activity.title}</p>
-              <p className="text-sm text-slate-600">{activity.place}</p>
-              <p className="text-sm text-slate-600">{activity.note}</p>
-              <p className="mt-1 text-sm font-medium text-slate-700">預計花費：₩{activity.cost.toLocaleString()}</p>
+              <div className="flex items-start justify-between gap-3">
+                <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-medium', categoryBadgeClass[activity.category])}>
+                  {categoryLabel[activity.category]}
+                </span>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                <p className="flex items-start gap-3">
+                  <span className="w-14 shrink-0 font-semibold text-slate-900">{activity.time}</span>
+                  <span className="font-semibold text-slate-900">{activity.title}</span>
+                </p>
+                <p className="flex items-center gap-1.5 text-sm text-slate-600">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <span>{activity.place}</span>
+                </p>
+                <p className="text-sm text-slate-400">{activity.note}</p>
+              </div>
+
+              <p className="mt-3 text-right text-sm font-medium text-slate-700">預計花費：₩{activity.cost.toLocaleString()}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
                   onClick={() => {
