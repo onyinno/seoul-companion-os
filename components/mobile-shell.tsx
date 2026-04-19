@@ -20,16 +20,16 @@ const IOS_EDGE_GUARD = 24;
 
 const pageSlideVariants = {
   enter: (direction: number) => ({
-    x: direction >= 0 ? 64 : -64,
-    opacity: 0.85
+    x: direction >= 0 ? '22%' : '-22%',
+    opacity: 0.96
   }),
   center: {
-    x: 0,
+    x: '0%',
     opacity: 1
   },
   exit: (direction: number) => ({
-    x: direction >= 0 ? -64 : 64,
-    opacity: 0.85
+    x: direction >= 0 ? '-22%' : '22%',
+    opacity: 0.96
   })
 };
 
@@ -55,6 +55,13 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
       prevIndexRef.current = activeIndex;
     }
   }, [activeIndex]);
+
+  useEffect(() => {
+    const prev = nav[activeIndex - 1];
+    const next = nav[activeIndex + 1];
+    if (prev) router.prefetch(prev.href);
+    if (next) router.prefetch(next.href);
+  }, [activeIndex, router]);
 
   const navigateToIndex = (nextIndex: number) => {
     if (nextIndex < 0 || nextIndex > nav.length - 1 || nextIndex === activeIndex) return;
@@ -100,24 +107,26 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
 
   return (
     <main
-      className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-24 pt-6"
+      className="mx-auto flex h-screen w-full max-w-md flex-col px-4 pb-24 pt-6"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <AnimatePresence mode="wait" initial={false} custom={direction}>
-        <motion.div
-          key={activeRouteKey}
-          custom={direction}
-          variants={pageSlideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-          className="flex-1"
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
+      <div className="relative flex-1 overflow-hidden">
+        <AnimatePresence initial={false} custom={direction}>
+          <motion.div
+            key={activeRouteKey}
+            custom={direction}
+            variants={pageSlideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute inset-0 overflow-y-auto"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
         <ul className="grid grid-cols-4 gap-2">
