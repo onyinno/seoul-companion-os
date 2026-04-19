@@ -3,7 +3,17 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { seoulSeedData } from '@/lib/seed';
-import type { Activity, ActivityCategory, ItineraryDay, Trip } from '@/lib/types';
+import type {
+  Activity,
+  ActivityCategory,
+  BookingData,
+  ItineraryDay,
+  PrepCategory,
+  PrepChecklistItem,
+  ShoppingCategory,
+  ShoppingItem,
+  Trip
+} from '@/lib/types';
 
 type ActivityInput = {
   dayId: string;
@@ -14,10 +24,27 @@ type ActivityInput = {
   cost: number;
 };
 
+type PrepInput = {
+  title: string;
+  category: PrepCategory;
+  note: string;
+};
+
+type ShoppingInput = {
+  title: string;
+  category: ShoppingCategory;
+  area: string;
+  note: string;
+};
+
 type TripState = {
   trip: Trip;
   days: ItineraryDay[];
   activities: Activity[];
+  bookings: BookingData;
+  prepItems: PrepChecklistItem[];
+  prepReminders: string[];
+  shoppingItems: ShoppingItem[];
   selectedDayId: string;
   seedData: () => void;
   selectDay: (dayId: string) => void;
@@ -27,12 +54,22 @@ type TripState = {
   deleteActivity: (activityId: string) => void;
   moveActivityUp: (activityId: string) => void;
   moveActivityDown: (activityId: string) => void;
+  togglePrepItem: (itemId: string) => void;
+  addPrepItem: (input: PrepInput) => void;
+  removePrepItem: (itemId: string) => void;
+  toggleShoppingItem: (itemId: string) => void;
+  addShoppingItem: (input: ShoppingInput) => void;
+  removeShoppingItem: (itemId: string) => void;
 };
 
 const initialState = {
   trip: seoulSeedData.trip,
   days: seoulSeedData.days,
   activities: seoulSeedData.activities,
+  bookings: seoulSeedData.bookings,
+  prepItems: seoulSeedData.prep.items,
+  prepReminders: seoulSeedData.prep.reminders,
+  shoppingItems: seoulSeedData.shopping.items,
   selectedDayId: seoulSeedData.days[0].id
 };
 
@@ -156,11 +193,66 @@ export const useTripStore = create<TripState>()(
         targetRef.order = nextRef.order;
         nextRef.order = temp;
         set({ activities });
+      },
+      togglePrepItem: (itemId) => {
+        const prepItems = get().prepItems.map((item) => {
+          if (item.id !== itemId) return item;
+          return { ...item, completed: !item.completed };
+        });
+        set({ prepItems });
+      },
+      addPrepItem: ({ title, category, note }) => {
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) return;
+        const trimmedNote = note.trim();
+        const prepItems = [
+          ...get().prepItems,
+          {
+            id: `prep-custom-${Date.now()}`,
+            title: trimmedTitle,
+            category,
+            note: trimmedNote,
+            completed: false
+          }
+        ];
+        set({ prepItems });
+      },
+      removePrepItem: (itemId) => {
+        const prepItems = get().prepItems.filter((item) => item.id !== itemId);
+        set({ prepItems });
+      },
+      toggleShoppingItem: (itemId) => {
+        const shoppingItems = get().shoppingItems.map((item) => {
+          if (item.id !== itemId) return item;
+          return { ...item, completed: !item.completed };
+        });
+        set({ shoppingItems });
+      },
+      addShoppingItem: ({ title, category, area, note }) => {
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) return;
+
+        const shoppingItems = [
+          ...get().shoppingItems,
+          {
+            id: `shopping-custom-${Date.now()}`,
+            title: trimmedTitle,
+            category,
+            area: area.trim(),
+            note: note.trim(),
+            completed: false
+          }
+        ];
+        set({ shoppingItems });
+      },
+      removeShoppingItem: (itemId) => {
+        const shoppingItems = get().shoppingItems.filter((item) => item.id !== itemId);
+        set({ shoppingItems });
       }
     }),
     {
       name: 'seoul-companion-v1',
-      version: 1,
+      version: 4,
       storage: createJSONStorage(() => localStorage)
     }
   )
