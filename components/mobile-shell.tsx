@@ -13,20 +13,16 @@ import { PrepScreen } from '@/components/prep-screen';
 
 type TopTab = 'home' | 'trip' | 'bookings' | 'prep';
 
-const nav: { key: TopTab; href: string; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: 'home', href: '/', label: '首頁', icon: House },
-  { key: 'trip', href: '/trip', label: '行程', icon: CalendarDays },
-  { key: 'bookings', href: '/bookings', label: '預約', icon: BookOpenCheck },
-  { key: 'prep', href: '/prep', label: '準備', icon: ListChecks }
+const nav = [
+  { key: 'home' as const, href: '/', label: '首頁', icon: House },
+  { key: 'trip' as const, href: '/trip', label: '行程', icon: CalendarDays },
+  { key: 'bookings' as const, href: '/bookings', label: '預約', icon: BookOpenCheck },
+  { key: 'prep' as const, href: '/prep', label: '準備', icon: ListChecks }
 ];
-
-const SWIPE_THRESHOLD = 70;
-const SWIPE_RATIO = 1.4;
-const IOS_EDGE_GUARD = 24;
 
 const pageSlideVariants = {
   enter: (direction: number) => ({
-    x: direction >= 0 ? '22%' : '-22%',
+    x: direction >= 0 ? '18%' : '-18%',
     opacity: 0.96
   }),
   center: {
@@ -34,31 +30,23 @@ const pageSlideVariants = {
     opacity: 1
   },
   exit: (direction: number) => ({
-    x: direction >= 0 ? '-22%' : '22%',
+    x: direction >= 0 ? '-18%' : '18%',
     opacity: 0.96
   })
 };
 
-const tabFromPath = (pathname: string): TopTab => {
+const tabFromPath = (pathname: string | null): TopTab => {
+  if (!pathname) return 'home';
   if (pathname.startsWith('/trip')) return 'trip';
   if (pathname.startsWith('/bookings')) return 'bookings';
   if (pathname.startsWith('/prep')) return 'prep';
   return 'home';
 };
 
-const screenByTab: Record<TopTab, React.ReactNode> = {
-  home: <DashboardScreen />,
-  trip: <TripScreen />,
-  bookings: <BookingsScreen />,
-  prep: <PrepScreen />
-};
-
 export function MobileShell() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
-  const [startedFromEdge, setStartedFromEdge] = useState(false);
   const [activeTab, setActiveTab] = useState<TopTab>(() => tabFromPath(pathname));
   const [direction, setDirection] = useState(0);
 
@@ -74,17 +62,9 @@ export function MobileShell() {
 
   useEffect(() => {
     const target = nav.find((item) => item.key === activeTab);
-    if (!target) return;
-    if (pathname === target.href) return;
+    if (!target || pathname === target.href) return;
     router.push(target.href);
   }, [activeTab, pathname, router]);
-
-  useEffect(() => {
-    const prev = nav[activeIndex - 1];
-    const next = nav[activeIndex + 1];
-    if (prev) router.prefetch(prev.href);
-    if (next) router.prefetch(next.href);
-  }, [activeIndex, router]);
 
   const switchTabByIndex = (nextIndex: number) => {
     if (nextIndex < 0 || nextIndex > nav.length - 1 || nextIndex === activeIndex) return;
@@ -92,48 +72,15 @@ export function MobileShell() {
     setActiveTab(nav[nextIndex].key);
   };
 
-  const handleTouchStart: React.TouchEventHandler<HTMLElement> = (event) => {
-    const target = event.target as HTMLElement;
-    const scrollable = target.closest('.no-scrollbar');
-    if (scrollable) {
-      setTouchStart(null);
-      return;
-    }
-
-    const touch = event.touches[0];
-    setTouchStart({ x: touch.clientX, y: touch.clientY });
-    setStartedFromEdge(touch.clientX <= IOS_EDGE_GUARD);
-  };
-
-  const handleTouchEnd: React.TouchEventHandler<HTMLElement> = (event) => {
-    if (!touchStart) return;
-
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - touchStart.x;
-    const dy = touch.clientY - touchStart.y;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    setTouchStart(null);
-
-    if (absDx < SWIPE_THRESHOLD) return;
-    if (absDx < absDy * SWIPE_RATIO) return;
-    if (startedFromEdge && dx > 0) return;
-
-    if (dx < 0) {
-      switchTabByIndex(activeIndex + 1);
-      return;
-    }
-
-    switchTabByIndex(activeIndex - 1);
+  const renderActiveScreen = () => {
+    if (activeTab === 'trip') return <TripScreen />;
+    if (activeTab === 'bookings') return <BookingsScreen />;
+    if (activeTab === 'prep') return <PrepScreen />;
+    return <DashboardScreen />;
   };
 
   return (
-    <main
-      className="mx-auto flex h-screen w-full max-w-md flex-col px-4 pb-24 pt-6"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <main className="mx-auto flex h-screen w-full max-w-md flex-col px-4 pb-24 pt-6">
       <div className="relative flex-1 overflow-hidden">
         <AnimatePresence initial={false} custom={direction}>
           <motion.div
@@ -146,7 +93,7 @@ export function MobileShell() {
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="absolute inset-0 overflow-y-auto"
           >
-            {screenByTab[activeTab]}
+            {renderActiveScreen()}
           </motion.div>
         </AnimatePresence>
       </div>
