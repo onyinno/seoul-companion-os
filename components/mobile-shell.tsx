@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpenCheck, CalendarDays, House } from 'lucide-react';
+import { BookOpenCheck, CalendarDays, House, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const nav = [
   { href: '/', label: '首頁', icon: House },
   { href: '/trip', label: '行程', icon: CalendarDays },
-  { href: '/bookings', label: '預約', icon: BookOpenCheck }
+  { href: '/bookings', label: '預約', icon: BookOpenCheck },
+  { href: '/prep', label: '準備', icon: ListChecks }
 ];
 
 export function MobileShell({ children }: { children: React.ReactNode }) {
@@ -18,7 +19,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-24 pt-6">
       {children}
       <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
-        <ul className="grid grid-cols-3 gap-2">
+        <ul className="grid grid-cols-4 gap-2">
           {nav.map(({ href, label, icon: Icon }) => {
             const active = pathname === href;
             return (
@@ -26,7 +27,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
                 <Link
                   href={href}
                   className={cn(
-                    'flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium transition',
+                    'flex h-12 items-center justify-center gap-1 rounded-xl text-sm font-medium transition',
                     active ? 'bg-[var(--balance-bluegrey-deep)] text-[var(--bg-card)]' : 'text-[var(--text-secondary)]'
                   )}
                 >
