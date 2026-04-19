@@ -1,5 +1,5 @@
 import { MobileShell } from '@/components/mobile-shell';
 
-export default function TabsLayout({ children }: { children: React.ReactNode }) {
-  return <MobileShell>{children}</MobileShell>;
+export default function TabsLayout() {
+  return <MobileShell />;
 }
