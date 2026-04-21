@@ -15,6 +15,7 @@ export type Trip = {
   destination: string;
   baseArea: string;
   hotel: string;
+  totalBudget: number;
   startDate: string;
   endDate: string;
   departureDate: string;
@@ -45,6 +46,8 @@ export type Activity = {
   category: ActivityCategory;
   time: string;
   place: string;
+  address?: string;
+  googleMapsUrl?: string;
   note: string;
   cost: number;
   order: number;
@@ -111,10 +114,60 @@ export type PrepData = {
   reminders: string[];
 };
 
+export type ShoppingCategory =
+  | '美妝 / 護膚'
+  | '服飾 / 配件'
+  | '零食 / 食品'
+  | '生活雜貨'
+  | '電子 / 配件'
+  | '手信';
+
+export type ShoppingAreaTag =
+  | '弘大'
+  | '延南'
+  | '聖水'
+  | '明洞'
+  | 'Olive Young'
+  | 'Daiso'
+  | '便利店';
+
+export type ShoppingItem = {
+  id: string;
+  title: string;
+  category: ShoppingCategory;
+  areaTag?: ShoppingAreaTag;
+  area: string;
+  storeName?: string;
+  address?: string;
+  googleMapsUrl?: string;
+  note: string;
+  estimatedCost: number;
+  actualCost: number;
+  completed: boolean;
+};
+
+export type ShoppingData = {
+  items: ShoppingItem[];
+};
+
+export type ThemeColor = 'seoul' | 'rose' | 'mint';
+
+export type FontSizeLevel = 'sm' | 'md' | 'lg';
+
+export type VisualPreference = 'lightweight' | 'simple' | 'comfortable';
+
+export type AppSettings = {
+  themeColor: ThemeColor;
+  fontSizeLevel: FontSizeLevel;
+  darkMode: boolean;
+  visualPreference: VisualPreference;
+};
+
 export type SeedData = {
   trip: Trip;
   days: ItineraryDay[];
   activities: Activity[];
   bookings: BookingData;
   prep: PrepData;
+  shopping: ShoppingData;
 };

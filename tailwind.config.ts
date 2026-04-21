@@ -13,7 +13,9 @@ const config: Config = {
         cream: '#F8F6F1'
       },
       boxShadow: {
-        soft: '0 8px 30px rgba(15, 23, 42, 0.06)'
+        soft: '0 2px 12px rgba(15, 23, 42, 0.05)',
+        'soft-lg': '0 6px 20px rgba(15, 23, 42, 0.07)',
+        nav: '0 4px 14px rgba(15, 23, 42, 0.06)'
       }
     }
   },

@@ -30,3 +30,9 @@ export function weatherLabel(condition: string) {
 
   return map[condition] ?? condition;
 }
+
+export function googleMapsSearchUrl(query: string) {
+  const trimmed = query.trim();
+  if (!trimmed) return '';
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`;
+}

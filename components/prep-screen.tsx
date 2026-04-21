@@ -54,7 +54,7 @@ export function PrepScreen() {
           <p className="text-sm text-[var(--text-muted)]">出發前打包清單，一項一項完成更安心。</p>
         </header>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <p className="text-sm text-[var(--text-secondary)]">Checklist 進度</p>
           <p className="mt-1 text-xl font-semibold text-[var(--text-main)]">已完成 {completedCount} / {prepItems.length} 項</p>
           <div className="mt-3 h-2 rounded-full bg-[var(--balance-bluegrey-soft)]">
@@ -62,7 +62,7 @@ export function PrepScreen() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">新增自訂項目</h2>
           <form className="mt-3 space-y-2" onSubmit={handleSubmit}>
             <select
@@ -94,7 +94,7 @@ export function PrepScreen() {
 
         <section className="space-y-3">
           {grouped.map((group) => (
-            <details key={group.category} className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft" open>
+            <details key={group.category} className="surface-raised rounded-3xl p-4" open>
               <summary className="cursor-pointer list-none">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-[var(--balance-bluegrey-deep)]">{group.category}</h3>
@@ -103,7 +103,7 @@ export function PrepScreen() {
               </summary>
               <ul className="mt-3 space-y-2">
                 {group.items.map((item) => (
-                  <li key={item.id} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2">
+                  <li key={item.id} className="surface-raised-soft rounded-2xl px-3 py-2">
                     <div className="flex items-start justify-between gap-2">
                       <label className="flex items-start gap-2">
                         <input
@@ -133,7 +133,7 @@ export function PrepScreen() {
           ))}
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">醫療注意事項</h2>
           <ul className="mt-2 space-y-1 text-sm text-[var(--text-secondary)]">
             {prepReminders.map((reminder) => (
@@ -145,7 +145,7 @@ export function PrepScreen() {
 
       {deletingItem && (
         <div className="fixed inset-0 z-[70] bg-[color:var(--balance-bluegrey-deep)]/45">
-          <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+          <section className="surface-raised absolute bottom-0 left-0 right-0 rounded-t-3xl p-4">
             <h3 className="text-lg font-semibold text-[var(--text-main)]">確認移除清單項目？</h3>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">{deletingItem.title}</p>
             <p className="mt-1 text-xs text-[var(--text-muted)]">可於「重設預設資料」後還原預設項目。</p>

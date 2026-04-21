@@ -10,6 +10,8 @@ type ActivityFormInput = {
   category: ActivityCategory;
   time: string;
   place: string;
+  address?: string;
+  googleMapsUrl?: string;
   note: string;
   cost: number;
 };
@@ -37,6 +39,8 @@ const defaultForm = {
   category: 'sightseeing' as ActivityCategory,
   time: '12:00',
   place: '',
+  address: '',
+  googleMapsUrl: '',
   note: '',
   cost: '0'
 };
@@ -51,6 +55,8 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
   const [category, setCategory] = useState<ActivityCategory>(defaultForm.category);
   const [time, setTime] = useState(defaultForm.time);
   const [place, setPlace] = useState(defaultForm.place);
+  const [address, setAddress] = useState(defaultForm.address);
+  const [googleMapsUrl, setGoogleMapsUrl] = useState(defaultForm.googleMapsUrl);
   const [note, setNote] = useState(defaultForm.note);
   const [cost, setCost] = useState(defaultForm.cost);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -66,6 +72,8 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
       setCategory(initialActivity.category);
       setTime(initialActivity.time);
       setPlace(initialActivity.place);
+      setAddress(initialActivity.address ?? '');
+      setGoogleMapsUrl(initialActivity.googleMapsUrl ?? '');
       setNote(initialActivity.note);
       setCost(String(initialActivity.cost));
       return;
@@ -74,6 +82,8 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
     setCategory(defaultForm.category);
     setTime(defaultForm.time);
     setPlace(defaultForm.place);
+    setAddress(defaultForm.address);
+    setGoogleMapsUrl(defaultForm.googleMapsUrl);
     setNote(defaultForm.note);
     setCost(defaultForm.cost);
   }, [open, mode, initialActivity]);
@@ -105,6 +115,8 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
       category,
       time,
       place: trimmedPlace,
+      address: address.trim(),
+      googleMapsUrl: googleMapsUrl.trim(),
       note: trimmedNote,
       cost: parsedCost
     });
@@ -118,7 +130,7 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
   return (
     <div className="fixed inset-0 z-[60] bg-[color:var(--balance-bluegrey-deep)]/40">
       <button className="h-full w-full" aria-label="關閉活動面板" onClick={onClose} />
-      <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised absolute bottom-0 left-0 right-0 rounded-t-3xl p-4">
         <header className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{mode === 'edit' ? '編輯活動' : '新增活動'}</h2>
           <Button onClick={onClose} aria-label="關閉" className="rounded-full p-2 text-[var(--text-secondary)]">
@@ -188,6 +200,27 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
               required
             />
             {errors.note && <p className="text-xs text-[var(--accent-strong)]">{errors.note}</p>}
+          </label>
+
+          <label className="block space-y-1 text-sm">
+            <span>地址（可選）</span>
+            <input
+              type="text"
+              className="w-full rounded-xl border border-[var(--border-soft)] px-3 py-2"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+          </label>
+
+          <label className="block space-y-1 text-sm">
+            <span>Google Maps 連結（可選）</span>
+            <input
+              type="url"
+              className="w-full rounded-xl border border-[var(--border-soft)] px-3 py-2"
+              value={googleMapsUrl}
+              onChange={(e) => setGoogleMapsUrl(e.target.value)}
+              placeholder="https://maps.google.com/..."
+            />
           </label>
 
           <label className="block space-y-1 text-sm">

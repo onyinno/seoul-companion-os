@@ -3,13 +3,30 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { seoulSeedData } from '@/lib/seed';
-import type { Activity, ActivityCategory, BookingData, ItineraryDay, PrepCategory, PrepChecklistItem, Trip } from '@/lib/types';
+import type {
+  Activity,
+  ActivityCategory,
+  AppSettings,
+  BookingData,
+  FontSizeLevel,
+  ItineraryDay,
+  PrepCategory,
+  PrepChecklistItem,
+  ShoppingAreaTag,
+  ShoppingCategory,
+  ShoppingItem,
+  ThemeColor,
+  Trip,
+  VisualPreference
+} from '@/lib/types';
 
 type ActivityInput = {
   dayId: string;
   category: ActivityCategory;
   time: string;
   place: string;
+  address?: string;
+  googleMapsUrl?: string;
   note: string;
   cost: number;
 };
@@ -20,6 +37,19 @@ type PrepInput = {
   note: string;
 };
 
+type ShoppingInput = {
+  title: string;
+  category: ShoppingCategory;
+  area: string;
+  areaTag?: ShoppingAreaTag;
+  storeName?: string;
+  address?: string;
+  googleMapsUrl?: string;
+  note: string;
+  estimatedCost: number;
+  actualCost: number;
+};
+
 type TripState = {
   trip: Trip;
   days: ItineraryDay[];
@@ -27,10 +57,13 @@ type TripState = {
   bookings: BookingData;
   prepItems: PrepChecklistItem[];
   prepReminders: string[];
+  shoppingItems: ShoppingItem[];
+  settings: AppSettings;
   selectedDayId: string;
   seedData: () => void;
   selectDay: (dayId: string) => void;
   resetToSeed: () => void;
+  setTotalBudget: (totalBudget: number) => void;
   addActivity: (input: ActivityInput) => void;
   updateActivity: (activityId: string, input: ActivityInput) => void;
   deleteActivity: (activityId: string) => void;
@@ -39,6 +72,14 @@ type TripState = {
   togglePrepItem: (itemId: string) => void;
   addPrepItem: (input: PrepInput) => void;
   removePrepItem: (itemId: string) => void;
+  toggleShoppingItem: (itemId: string) => void;
+  addShoppingItem: (input: ShoppingInput) => void;
+  updateShoppingItem: (itemId: string, input: ShoppingInput) => void;
+  removeShoppingItem: (itemId: string) => void;
+  setThemeColor: (themeColor: ThemeColor) => void;
+  setFontSizeLevel: (fontSizeLevel: FontSizeLevel) => void;
+  setDarkMode: (darkMode: boolean) => void;
+  setVisualPreference: (visualPreference: VisualPreference) => void;
 };
 
 const initialState = {
@@ -48,6 +89,13 @@ const initialState = {
   bookings: seoulSeedData.bookings,
   prepItems: seoulSeedData.prep.items,
   prepReminders: seoulSeedData.prep.reminders,
+  shoppingItems: seoulSeedData.shopping.items,
+  settings: {
+    themeColor: 'seoul' as ThemeColor,
+    fontSizeLevel: 'md' as FontSizeLevel,
+    darkMode: false,
+    visualPreference: 'simple' as VisualPreference
+  },
   selectedDayId: seoulSeedData.days[0].id
 };
 
@@ -87,7 +135,11 @@ export const useTripStore = create<TripState>()(
       seedData: () => set({ ...initialState }),
       selectDay: (dayId) => set({ selectedDayId: dayId }),
       resetToSeed: () => set({ ...initialState }),
-      addActivity: ({ dayId, category, time, place, note, cost }) => {
+      setTotalBudget: (totalBudget) => {
+        const nextBudget = Number.isFinite(totalBudget) ? Math.max(0, Math.round(totalBudget)) : get().trip.totalBudget;
+        set((state) => ({ trip: { ...state.trip, totalBudget: nextBudget } }));
+      },
+      addActivity: ({ dayId, category, time, place, address, googleMapsUrl, note, cost }) => {
         const dayActivities = get().activities.filter((activity) => activity.dayId === dayId);
         const nextId = `activity-${dayId}-${Date.now()}`;
 
@@ -98,6 +150,8 @@ export const useTripStore = create<TripState>()(
           category,
           time,
           place,
+          address: address?.trim() ?? '',
+          googleMapsUrl: googleMapsUrl?.trim() ?? '',
           note,
           cost,
           order: dayActivities.length + 1
@@ -106,7 +160,7 @@ export const useTripStore = create<TripState>()(
         const nextActivities = sortDayActivitiesByTime([...get().activities, newActivity], dayId);
         set({ activities: nextActivities });
       },
-      updateActivity: (activityId, { dayId, category, time, place, note, cost }) => {
+      updateActivity: (activityId, { dayId, category, time, place, address, googleMapsUrl, note, cost }) => {
         const current = get().activities.find((activity) => activity.id === activityId);
         if (!current) return;
 
@@ -118,6 +172,8 @@ export const useTripStore = create<TripState>()(
             category,
             time,
             place,
+            address: address?.trim() ?? '',
+            googleMapsUrl: googleMapsUrl?.trim() ?? '',
             note,
             cost,
             title: `${categoryTitle[category]}：${place}`
@@ -198,11 +254,81 @@ export const useTripStore = create<TripState>()(
       removePrepItem: (itemId) => {
         const prepItems = get().prepItems.filter((item) => item.id !== itemId);
         set({ prepItems });
+      },
+      toggleShoppingItem: (itemId) => {
+        const shoppingItems = get().shoppingItems.map((item) => {
+          if (item.id !== itemId) return item;
+          return { ...item, completed: !item.completed };
+        });
+        set({ shoppingItems });
+      },
+      addShoppingItem: ({ title, category, area, areaTag, storeName, address, googleMapsUrl, note, estimatedCost, actualCost }) => {
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) return;
+        const trimmedNote = note.trim();
+        const trimmedArea = area.trim();
+        const shoppingItems = [
+          ...get().shoppingItems,
+          {
+            id: `shopping-custom-${Date.now()}`,
+            title: trimmedTitle,
+            category,
+            area: trimmedArea,
+            areaTag,
+            storeName: storeName?.trim() ?? '',
+            address: address?.trim() ?? '',
+            googleMapsUrl: googleMapsUrl?.trim() ?? '',
+            note: trimmedNote,
+            estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
+            actualCost: Math.max(0, Math.round(actualCost || 0)),
+            completed: false
+          }
+        ];
+        set({ shoppingItems });
+      },
+      updateShoppingItem: (itemId, { title, category, area, areaTag, storeName, address, googleMapsUrl, note, estimatedCost, actualCost }) => {
+        const trimmedTitle = title.trim();
+        if (!trimmedTitle) return;
+        const trimmedNote = note.trim();
+        const trimmedArea = area.trim();
+        const shoppingItems = get().shoppingItems.map((item) => {
+          if (item.id !== itemId) return item;
+          return {
+            ...item,
+            title: trimmedTitle,
+            category,
+            area: trimmedArea,
+            areaTag,
+            storeName: storeName?.trim() ?? '',
+            address: address?.trim() ?? '',
+            googleMapsUrl: googleMapsUrl?.trim() ?? '',
+            note: trimmedNote,
+            estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
+            actualCost: Math.max(0, Math.round(actualCost || 0))
+          };
+        });
+        set({ shoppingItems });
+      },
+      removeShoppingItem: (itemId) => {
+        const shoppingItems = get().shoppingItems.filter((item) => item.id !== itemId);
+        set({ shoppingItems });
+      },
+      setThemeColor: (themeColor) => {
+        set((state) => ({ settings: { ...state.settings, themeColor } }));
+      },
+      setFontSizeLevel: (fontSizeLevel) => {
+        set((state) => ({ settings: { ...state.settings, fontSizeLevel } }));
+      },
+      setDarkMode: (darkMode) => {
+        set((state) => ({ settings: { ...state.settings, darkMode } }));
+      },
+      setVisualPreference: (visualPreference) => {
+        set((state) => ({ settings: { ...state.settings, visualPreference } }));
       }
     }),
     {
       name: 'seoul-companion-v1',
-      version: 3,
+      version: 7,
       storage: createJSONStorage(() => localStorage)
     }
   )

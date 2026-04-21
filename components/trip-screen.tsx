@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, MapPin, Plus } from 'lucide-react';
-import { formatDate, weatherLabel } from '@/lib/utils';
+import { ArrowDown, ArrowUp, ExternalLink, MapPin, Plus } from 'lucide-react';
+import { formatDate, googleMapsSearchUrl, weatherLabel } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,21 @@ export function TripScreen() {
     [activities, selectedDay.id]
   );
 
+  const buildActivityMapQuery = (activity: Activity) => {
+    const overrideUrl = activity.googleMapsUrl?.trim();
+    if (overrideUrl) return overrideUrl;
+
+    const address = activity.address?.trim();
+    if (address) return address;
+
+    const place = activity.place.trim();
+    if (!place) return '';
+
+    const area = selectedDay.district?.trim();
+    if (area) return `${place} ${area} Seoul`;
+    return place;
+  };
+
   useEffect(() => {
     if (!deletingActivity) return;
 
@@ -62,6 +77,8 @@ export function TripScreen() {
     category: ActivityCategory;
     time: string;
     place: string;
+    address?: string;
+    googleMapsUrl?: string;
     note: string;
     cost: number;
   }) => {
@@ -73,6 +90,8 @@ export function TripScreen() {
     category: ActivityCategory;
     time: string;
     place: string;
+    address?: string;
+    googleMapsUrl?: string;
     note: string;
     cost: number;
   }) => {
@@ -109,7 +128,7 @@ export function TripScreen() {
           ))}
         </div>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-5 shadow-soft">
+        <section className="surface-raised rounded-3xl p-5">
           <p className="text-sm text-[var(--text-muted)]">{formatDate(selectedDay.date)} · {selectedDay.district}</p>
           <h2 className="text-lg font-semibold">{selectedDay.title}</h2>
           <p className="text-sm text-[var(--text-secondary)]">{weatherLabel(selectedDay.weather.condition)} · {selectedDay.weather.minC}°/{selectedDay.weather.maxC}°</p>
@@ -117,7 +136,7 @@ export function TripScreen() {
 
         <ul className="space-y-3">
           {dayActivities.map((activity) => (
-            <li key={activity.id} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+            <li key={activity.id} className="surface-raised-soft rounded-2xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-medium', categoryBadgeClass[activity.category])}>
                   {categoryLabel[activity.category]}
@@ -133,6 +152,21 @@ export function TripScreen() {
                   <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
                   <span>{activity.place}</span>
                 </p>
+                {(() => {
+                  const query = buildActivityMapQuery(activity);
+                  const href = query.startsWith('http') ? query : googleMapsSearchUrl(query);
+                  if (!href) return null;
+                  return (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-[var(--balance-bluegrey-deep)] underline-offset-2 hover:underline"
+                    >
+                      在 Google 地圖開啟 <ExternalLink className="h-3 w-3" />
+                    </a>
+                  );
+                })()}
                 <p className="text-sm text-[var(--text-muted)]">{activity.note}</p>
               </div>
 
@@ -192,7 +226,7 @@ export function TripScreen() {
 
       {deletingActivity && (
         <div className="fixed inset-0 z-[70] bg-[color:var(--balance-bluegrey-deep)]/45">
-          <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+          <section className="surface-raised absolute bottom-0 left-0 right-0 rounded-t-3xl p-4">
             <h3 className="text-lg font-semibold">確認刪除活動？</h3>
             <div className="mt-2 rounded-xl bg-[var(--bg-surface)] p-3 text-sm text-[var(--text-secondary)]">
               <p>分類：{categoryLabel[deletingActivity.category]}</p>
