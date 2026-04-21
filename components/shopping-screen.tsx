@@ -41,7 +41,10 @@ const broadOnlyAreas: ShoppingAreaTag[] = ['弘大', '延南', '聖水', '明洞
 type ShoppingFormState = {
   title: string;
   category: ShoppingCategory;
-  areaTag: ShoppingAreaTag;
+  area: string;
+  storeName: string;
+  address: string;
+  googleMapsUrl: string;
   note: string;
   estimatedCost: string;
   actualCost: string;
@@ -50,7 +53,10 @@ type ShoppingFormState = {
 const defaultForm: ShoppingFormState = {
   title: '',
   category: '美妝 / 護膚',
-  areaTag: '弘大',
+  area: '弘大',
+  storeName: '',
+  address: '',
+  googleMapsUrl: '',
   note: '',
   estimatedCost: '0',
   actualCost: '0'
@@ -69,13 +75,17 @@ export function ShoppingScreen() {
   const totalCount = shoppingItems.length;
 
   const buildShoppingMapHref = (item: ShoppingItem) => {
+    const overrideUrl = item.googleMapsUrl?.trim();
+    if (overrideUrl) return overrideUrl;
+
     const address = item.address?.trim();
-    const fallbackStoreName = broadOnlyAreas.includes(item.areaTag) ? '' : item.areaTag;
+    const area = (item.area || item.areaTag || '').trim() as ShoppingAreaTag | string;
+    const fallbackStoreName = broadOnlyAreas.includes(area as ShoppingAreaTag) ? '' : area;
     const storeName = item.storeName?.trim() || fallbackStoreName;
     const mapQuery = address
       ? address
-      : storeName && item.areaTag
-        ? `${storeName} ${item.areaTag} Seoul`
+      : storeName && area
+        ? `${storeName} ${area} Seoul`
         : storeName;
     return googleMapsSearchUrl(mapQuery);
   };
@@ -93,7 +103,10 @@ export function ShoppingScreen() {
     setForm({
       title: item.title,
       category: item.category,
-      areaTag: item.areaTag,
+      area: item.area || item.areaTag || '',
+      storeName: item.storeName ?? '',
+      address: item.address ?? '',
+      googleMapsUrl: item.googleMapsUrl ?? '',
       note: item.note,
       estimatedCost: String(item.estimatedCost),
       actualCost: String(item.actualCost)
@@ -112,7 +125,11 @@ export function ShoppingScreen() {
     const payload = {
       title: form.title,
       category: form.category,
-      areaTag: form.areaTag,
+      area: form.area,
+      areaTag: areaTags.find((tag) => tag === form.area),
+      storeName: form.storeName,
+      address: form.address,
+      googleMapsUrl: form.googleMapsUrl,
       note: form.note,
       estimatedCost: Number(form.estimatedCost || 0),
       actualCost: Number(form.actualCost || 0)
@@ -247,16 +264,38 @@ export function ShoppingScreen() {
                     <option key={item} value={item}>{item}</option>
                   ))}
                 </select>
-                <select
-                  value={form.areaTag}
-                  onChange={(event) => setForm((prev) => ({ ...prev, areaTag: event.target.value as ShoppingAreaTag }))}
+                <input
+                  list="shopping-area-options"
+                  value={form.area}
+                  onChange={(event) => setForm((prev) => ({ ...prev, area: event.target.value }))}
                   className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm"
-                >
+                  placeholder="地區 / 商圈"
+                />
+                <datalist id="shopping-area-options">
                   {areaTags.map((item) => (
-                    <option key={item} value={item}>{item}</option>
+                    <option key={item} value={item} />
                   ))}
-                </select>
+                </datalist>
               </div>
+              <input
+                value={form.storeName}
+                onChange={(event) => setForm((prev) => ({ ...prev, storeName: event.target.value }))}
+                className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm"
+                placeholder="店名（可選）"
+              />
+              <input
+                value={form.address}
+                onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
+                className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm"
+                placeholder="地址（可選）"
+              />
+              <input
+                type="url"
+                value={form.googleMapsUrl}
+                onChange={(event) => setForm((prev) => ({ ...prev, googleMapsUrl: event.target.value }))}
+                className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm"
+                placeholder="Google Maps 連結（可選）"
+              />
               <input
                 value={form.note}
                 onChange={(event) => setForm((prev) => ({ ...prev, note: event.target.value }))}
@@ -340,7 +379,7 @@ function ShoppingRow({
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full bg-[var(--bg-card)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]">{item.category}</span>
-              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', areaToneMap[item.areaTag])}>{item.areaTag}</span>
+              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', areaToneMap[(item.areaTag || '弘大') as ShoppingAreaTag])}>{item.area || item.areaTag}</span>
             </div>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">預估 ₩{item.estimatedCost.toLocaleString()} · 實際 ₩{item.actualCost.toLocaleString()}</p>
             {mapHref && (

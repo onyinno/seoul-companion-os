@@ -185,12 +185,12 @@ export const seoulSeedData: SeedData = {
   },
   "shopping": {
     "items": [
-      {"id":"shop-1","title":"保濕精華","category":"美妝 / 護膚","areaTag":"Olive Young","storeName":"Olive Young Hongdae","note":"比香港平先入手","estimatedCost":32000,"actualCost":0,"completed":false},
-      {"id":"shop-2","title":"韓系耳環","category":"服飾 / 配件","areaTag":"弘大","storeName":"AK& Hongdae Accessory","note":"找簡約銀色款","estimatedCost":18000,"actualCost":0,"completed":false},
-      {"id":"shop-3","title":"海苔脆片","category":"零食 / 食品","areaTag":"便利店","note":"","estimatedCost":6000,"actualCost":0,"completed":false},
-      {"id":"shop-4","title":"旅行收納袋","category":"生活雜貨","areaTag":"Daiso","storeName":"Daiso Hongdae","note":"中小尺寸各一","estimatedCost":10000,"actualCost":9000,"completed":true},
-      {"id":"shop-5","title":"Type-C 線","category":"電子 / 配件","areaTag":"聖水","storeName":"Seongsu Electronics Mall","note":"","estimatedCost":12000,"actualCost":0,"completed":false},
-      {"id":"shop-6","title":"杏仁果禮盒","category":"手信","areaTag":"明洞","note":"回程前一天再買","estimatedCost":25000,"actualCost":0,"completed":false}
+      {"id":"shop-1","title":"保濕精華","category":"美妝 / 護膚","areaTag":"Olive Young","area":"弘大","storeName":"Olive Young Hongdae","note":"比香港平先入手","estimatedCost":32000,"actualCost":0,"completed":false},
+      {"id":"shop-2","title":"韓系耳環","category":"服飾 / 配件","areaTag":"弘大","area":"弘大","storeName":"AK& Hongdae Accessory","note":"找簡約銀色款","estimatedCost":18000,"actualCost":0,"completed":false},
+      {"id":"shop-3","title":"海苔脆片","category":"零食 / 食品","areaTag":"便利店","area":"弘大","storeName":"GS25 Hongdae","note":"","estimatedCost":6000,"actualCost":0,"completed":false},
+      {"id":"shop-4","title":"旅行收納袋","category":"生活雜貨","areaTag":"Daiso","area":"弘大","storeName":"Daiso Hongdae","note":"中小尺寸各一","estimatedCost":10000,"actualCost":9000,"completed":true},
+      {"id":"shop-5","title":"Type-C 線","category":"電子 / 配件","areaTag":"聖水","area":"聖水","storeName":"Seongsu Electronics Mall","note":"","estimatedCost":12000,"actualCost":0,"completed":false},
+      {"id":"shop-6","title":"杏仁果禮盒","category":"手信","areaTag":"明洞","area":"明洞","storeName":"Myeongdong Gift House","note":"回程前一天再買","estimatedCost":25000,"actualCost":0,"completed":false}
     ]
   }
 };

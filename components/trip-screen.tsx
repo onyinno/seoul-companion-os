@@ -42,6 +42,9 @@ export function TripScreen() {
   );
 
   const buildActivityMapQuery = (activity: Activity) => {
+    const overrideUrl = activity.googleMapsUrl?.trim();
+    if (overrideUrl) return overrideUrl;
+
     const address = activity.address?.trim();
     if (address) return address;
 
@@ -74,6 +77,8 @@ export function TripScreen() {
     category: ActivityCategory;
     time: string;
     place: string;
+    address?: string;
+    googleMapsUrl?: string;
     note: string;
     cost: number;
   }) => {
@@ -85,6 +90,8 @@ export function TripScreen() {
     category: ActivityCategory;
     time: string;
     place: string;
+    address?: string;
+    googleMapsUrl?: string;
     note: string;
     cost: number;
   }) => {
@@ -147,7 +154,7 @@ export function TripScreen() {
                 </p>
                 {(() => {
                   const query = buildActivityMapQuery(activity);
-                  const href = googleMapsSearchUrl(query);
+                  const href = query.startsWith('http') ? query : googleMapsSearchUrl(query);
                   if (!href) return null;
                   return (
                     <a

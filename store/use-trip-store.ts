@@ -25,6 +25,8 @@ type ActivityInput = {
   category: ActivityCategory;
   time: string;
   place: string;
+  address?: string;
+  googleMapsUrl?: string;
   note: string;
   cost: number;
 };
@@ -38,9 +40,11 @@ type PrepInput = {
 type ShoppingInput = {
   title: string;
   category: ShoppingCategory;
-  areaTag: ShoppingAreaTag;
+  area: string;
+  areaTag?: ShoppingAreaTag;
   storeName?: string;
   address?: string;
+  googleMapsUrl?: string;
   note: string;
   estimatedCost: number;
   actualCost: number;
@@ -135,7 +139,7 @@ export const useTripStore = create<TripState>()(
         const nextBudget = Number.isFinite(totalBudget) ? Math.max(0, Math.round(totalBudget)) : get().trip.totalBudget;
         set((state) => ({ trip: { ...state.trip, totalBudget: nextBudget } }));
       },
-      addActivity: ({ dayId, category, time, place, note, cost }) => {
+      addActivity: ({ dayId, category, time, place, address, googleMapsUrl, note, cost }) => {
         const dayActivities = get().activities.filter((activity) => activity.dayId === dayId);
         const nextId = `activity-${dayId}-${Date.now()}`;
 
@@ -146,6 +150,8 @@ export const useTripStore = create<TripState>()(
           category,
           time,
           place,
+          address: address?.trim() ?? '',
+          googleMapsUrl: googleMapsUrl?.trim() ?? '',
           note,
           cost,
           order: dayActivities.length + 1
@@ -154,7 +160,7 @@ export const useTripStore = create<TripState>()(
         const nextActivities = sortDayActivitiesByTime([...get().activities, newActivity], dayId);
         set({ activities: nextActivities });
       },
-      updateActivity: (activityId, { dayId, category, time, place, note, cost }) => {
+      updateActivity: (activityId, { dayId, category, time, place, address, googleMapsUrl, note, cost }) => {
         const current = get().activities.find((activity) => activity.id === activityId);
         if (!current) return;
 
@@ -166,6 +172,8 @@ export const useTripStore = create<TripState>()(
             category,
             time,
             place,
+            address: address?.trim() ?? '',
+            googleMapsUrl: googleMapsUrl?.trim() ?? '',
             note,
             cost,
             title: `${categoryTitle[category]}：${place}`
@@ -254,19 +262,22 @@ export const useTripStore = create<TripState>()(
         });
         set({ shoppingItems });
       },
-      addShoppingItem: ({ title, category, areaTag, storeName, address, note, estimatedCost, actualCost }) => {
+      addShoppingItem: ({ title, category, area, areaTag, storeName, address, googleMapsUrl, note, estimatedCost, actualCost }) => {
         const trimmedTitle = title.trim();
         if (!trimmedTitle) return;
         const trimmedNote = note.trim();
+        const trimmedArea = area.trim();
         const shoppingItems = [
           ...get().shoppingItems,
           {
             id: `shopping-custom-${Date.now()}`,
             title: trimmedTitle,
             category,
+            area: trimmedArea,
             areaTag,
             storeName: storeName?.trim() ?? '',
             address: address?.trim() ?? '',
+            googleMapsUrl: googleMapsUrl?.trim() ?? '',
             note: trimmedNote,
             estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
             actualCost: Math.max(0, Math.round(actualCost || 0)),
@@ -275,19 +286,22 @@ export const useTripStore = create<TripState>()(
         ];
         set({ shoppingItems });
       },
-      updateShoppingItem: (itemId, { title, category, areaTag, storeName, address, note, estimatedCost, actualCost }) => {
+      updateShoppingItem: (itemId, { title, category, area, areaTag, storeName, address, googleMapsUrl, note, estimatedCost, actualCost }) => {
         const trimmedTitle = title.trim();
         if (!trimmedTitle) return;
         const trimmedNote = note.trim();
+        const trimmedArea = area.trim();
         const shoppingItems = get().shoppingItems.map((item) => {
           if (item.id !== itemId) return item;
           return {
             ...item,
             title: trimmedTitle,
             category,
+            area: trimmedArea,
             areaTag,
             storeName: storeName?.trim() ?? '',
             address: address?.trim() ?? '',
+            googleMapsUrl: googleMapsUrl?.trim() ?? '',
             note: trimmedNote,
             estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
             actualCost: Math.max(0, Math.round(actualCost || 0))
@@ -314,7 +328,7 @@ export const useTripStore = create<TripState>()(
     }),
     {
       name: 'seoul-companion-v1',
-      version: 6,
+      version: 7,
       storage: createJSONStorage(() => localStorage)
     }
   )

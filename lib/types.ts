@@ -47,6 +47,7 @@ export type Activity = {
   time: string;
   place: string;
   address?: string;
+  googleMapsUrl?: string;
   note: string;
   cost: number;
   order: number;
@@ -134,9 +135,11 @@ export type ShoppingItem = {
   id: string;
   title: string;
   category: ShoppingCategory;
-  areaTag: ShoppingAreaTag;
+  areaTag?: ShoppingAreaTag;
+  area: string;
   storeName?: string;
   address?: string;
+  googleMapsUrl?: string;
   note: string;
   estimatedCost: number;
   actualCost: number;
