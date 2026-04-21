@@ -39,6 +39,8 @@ type ShoppingInput = {
   title: string;
   category: ShoppingCategory;
   areaTag: ShoppingAreaTag;
+  storeName?: string;
+  address?: string;
   note: string;
   estimatedCost: number;
   actualCost: number;
@@ -252,7 +254,7 @@ export const useTripStore = create<TripState>()(
         });
         set({ shoppingItems });
       },
-      addShoppingItem: ({ title, category, areaTag, note, estimatedCost, actualCost }) => {
+      addShoppingItem: ({ title, category, areaTag, storeName, address, note, estimatedCost, actualCost }) => {
         const trimmedTitle = title.trim();
         if (!trimmedTitle) return;
         const trimmedNote = note.trim();
@@ -263,6 +265,8 @@ export const useTripStore = create<TripState>()(
             title: trimmedTitle,
             category,
             areaTag,
+            storeName: storeName?.trim() ?? '',
+            address: address?.trim() ?? '',
             note: trimmedNote,
             estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
             actualCost: Math.max(0, Math.round(actualCost || 0)),
@@ -271,7 +275,7 @@ export const useTripStore = create<TripState>()(
         ];
         set({ shoppingItems });
       },
-      updateShoppingItem: (itemId, { title, category, areaTag, note, estimatedCost, actualCost }) => {
+      updateShoppingItem: (itemId, { title, category, areaTag, storeName, address, note, estimatedCost, actualCost }) => {
         const trimmedTitle = title.trim();
         if (!trimmedTitle) return;
         const trimmedNote = note.trim();
@@ -282,6 +286,8 @@ export const useTripStore = create<TripState>()(
             title: trimmedTitle,
             category,
             areaTag,
+            storeName: storeName?.trim() ?? '',
+            address: address?.trim() ?? '',
             note: trimmedNote,
             estimatedCost: Math.max(0, Math.round(estimatedCost || 0)),
             actualCost: Math.max(0, Math.round(actualCost || 0))

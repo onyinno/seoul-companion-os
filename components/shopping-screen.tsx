@@ -1,10 +1,10 @@
 'use client';
 
 import { FormEvent, useMemo, useState } from 'react';
-import { Pencil, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
+import { ExternalLink, Pencil, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTripStore } from '@/store/use-trip-store';
-import { cn } from '@/lib/utils';
+import { cn, googleMapsSearchUrl } from '@/lib/utils';
 import type { ShoppingAreaTag, ShoppingCategory, ShoppingItem } from '@/lib/types';
 
 const shoppingCategories: ShoppingCategory[] = [
@@ -36,6 +36,8 @@ const areaToneMap: Record<ShoppingAreaTag, string> = {
   便利店: 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
 };
 
+const broadOnlyAreas: ShoppingAreaTag[] = ['弘大', '延南', '聖水', '明洞'];
+
 type ShoppingFormState = {
   title: string;
   category: ShoppingCategory;
@@ -65,6 +67,18 @@ export function ShoppingScreen() {
   const completedItems = useMemo(() => shoppingItems.filter((item) => item.completed), [shoppingItems]);
   const completedCount = completedItems.length;
   const totalCount = shoppingItems.length;
+
+  const buildShoppingMapHref = (item: ShoppingItem) => {
+    const address = item.address?.trim();
+    const fallbackStoreName = broadOnlyAreas.includes(item.areaTag) ? '' : item.areaTag;
+    const storeName = item.storeName?.trim() || fallbackStoreName;
+    const mapQuery = address
+      ? address
+      : storeName && item.areaTag
+        ? `${storeName} ${item.areaTag} Seoul`
+        : storeName;
+    return googleMapsSearchUrl(mapQuery);
+  };
 
   const resetForm = () => setForm(defaultForm);
 
@@ -169,6 +183,7 @@ export function ShoppingScreen() {
                   <ShoppingRow
                     key={item.id}
                     item={item}
+                    mapHref={buildShoppingMapHref(item)}
                     onToggle={() => toggleShoppingItem(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
@@ -191,6 +206,7 @@ export function ShoppingScreen() {
                   <ShoppingRow
                     key={item.id}
                     item={item}
+                    mapHref={buildShoppingMapHref(item)}
                     onToggle={() => toggleShoppingItem(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
@@ -297,11 +313,13 @@ export function ShoppingScreen() {
 
 function ShoppingRow({
   item,
+  mapHref,
   onToggle,
   onEdit,
   onDelete
 }: {
   item: ShoppingItem;
+  mapHref: string;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -325,6 +343,16 @@ function ShoppingRow({
               <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', areaToneMap[item.areaTag])}>{item.areaTag}</span>
             </div>
             <p className="mt-1 text-xs text-[var(--text-secondary)]">預估 ₩{item.estimatedCost.toLocaleString()} · 實際 ₩{item.actualCost.toLocaleString()}</p>
+            {mapHref && (
+              <a
+                href={mapHref}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex items-center gap-1 text-xs text-[var(--balance-bluegrey-deep)] underline-offset-2 hover:underline"
+              >
+                在 Google 地圖開啟 <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
             {item.note && <p className="mt-1 text-xs text-[var(--text-muted)]">{item.note}</p>}
           </span>
         </label>

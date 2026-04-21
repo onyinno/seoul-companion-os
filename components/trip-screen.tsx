@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, MapPin, Plus } from 'lucide-react';
-import { formatDate, weatherLabel } from '@/lib/utils';
+import { ArrowDown, ArrowUp, ExternalLink, MapPin, Plus } from 'lucide-react';
+import { formatDate, googleMapsSearchUrl, weatherLabel } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,18 @@ export function TripScreen() {
     () => activities.filter((activity) => activity.dayId === selectedDay.id).sort((a, b) => a.order - b.order),
     [activities, selectedDay.id]
   );
+
+  const buildActivityMapQuery = (activity: Activity) => {
+    const address = activity.address?.trim();
+    if (address) return address;
+
+    const place = activity.place.trim();
+    if (!place) return '';
+
+    const area = selectedDay.district?.trim();
+    if (area) return `${place} ${area} Seoul`;
+    return place;
+  };
 
   useEffect(() => {
     if (!deletingActivity) return;
@@ -133,6 +145,21 @@ export function TripScreen() {
                   <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
                   <span>{activity.place}</span>
                 </p>
+                {(() => {
+                  const query = buildActivityMapQuery(activity);
+                  const href = googleMapsSearchUrl(query);
+                  if (!href) return null;
+                  return (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-[var(--balance-bluegrey-deep)] underline-offset-2 hover:underline"
+                    >
+                      在 Google 地圖開啟 <ExternalLink className="h-3 w-3" />
+                    </a>
+                  );
+                })()}
                 <p className="text-sm text-[var(--text-muted)]">{activity.note}</p>
               </div>
 

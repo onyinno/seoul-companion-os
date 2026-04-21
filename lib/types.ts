@@ -46,6 +46,7 @@ export type Activity = {
   category: ActivityCategory;
   time: string;
   place: string;
+  address?: string;
   note: string;
   cost: number;
   order: number;
@@ -134,6 +135,8 @@ export type ShoppingItem = {
   title: string;
   category: ShoppingCategory;
   areaTag: ShoppingAreaTag;
+  storeName?: string;
+  address?: string;
   note: string;
   estimatedCost: number;
   actualCost: number;
