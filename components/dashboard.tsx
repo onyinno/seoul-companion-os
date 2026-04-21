@@ -80,7 +80,7 @@ export function DashboardScreen() {
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-soft"
+          className="overflow-hidden rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-soft-lg"
         >
           <div className="p-5">
             <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
@@ -210,7 +210,7 @@ export function DashboardScreen() {
           <Button onClick={() => setIsSheetOpen(true)} className="rounded-2xl bg-[var(--accent-strong)] px-3 py-3 text-xs font-medium text-[var(--bg-card)]">
             <Plus className="mx-auto mb-1 h-4 w-4" /> 新增
           </Button>
-          <Button onClick={resetToSeed} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-xs font-medium text-[var(--balance-bluegrey-deep)] shadow-soft">重設預設資料</Button>
+          <Button onClick={resetToSeed} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-xs font-medium text-[var(--balance-bluegrey-deep)]">重設預設資料</Button>
         </section>
       </div>
 

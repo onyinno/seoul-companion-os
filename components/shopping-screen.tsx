@@ -307,7 +307,7 @@ function ShoppingRow({
   onDelete: () => void;
 }) {
   return (
-    <li className={cn('rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2.5', item.completed && 'opacity-85')}>
+    <li className={cn('rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2.5 shadow-soft', item.completed && 'opacity-85')}>
       <div className="flex items-start justify-between gap-2">
         <label className="flex min-w-0 flex-1 items-start gap-2">
           <input

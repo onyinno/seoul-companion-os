@@ -94,7 +94,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
         </AnimatePresence>
       </div>
 
-      <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-soft backdrop-blur">
+      <nav className="fixed bottom-4 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-[var(--border-soft)] bg-[color:var(--bg-card)]/95 p-2 shadow-nav backdrop-blur">
         <ul className={cn('grid gap-2', nav.length === 7 ? 'grid-cols-7' : nav.length === 6 ? 'grid-cols-6' : nav.length === 5 ? 'grid-cols-5' : 'grid-cols-4')}>
           {nav.map(({ href, label, icon: Icon }, index) => {
             const active = activeIndex === index;
