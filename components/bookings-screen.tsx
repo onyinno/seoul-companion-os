@@ -17,7 +17,7 @@ export function BookingsScreen() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-[var(--text-muted)]">機票</h2>
         {bookings.flights.map((flight) => (
-          <article key={flight.id} className="overflow-hidden rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] shadow-soft">
+          <article key={flight.id} className="surface-raised overflow-hidden rounded-3xl">
             <div className="flex items-center justify-between bg-[var(--accent-strong)] px-4 py-2.5 text-white">
               <p className="text-[11px] font-medium tracking-[0.16em]">HK EXPRESS</p>
               <p className="text-xs font-semibold tracking-[0.18em]">BOARDING PASS</p>
@@ -82,7 +82,7 @@ export function BookingsScreen() {
         ))}
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <div className="flex items-center gap-2 text-sm font-medium text-[var(--balance-bluegrey-deep)]">
           <Building2 className="h-4 w-4" />
           住宿
@@ -96,7 +96,7 @@ export function BookingsScreen() {
         <p className="mt-2 rounded-xl bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-muted)]">{bookings.accommodation.note}</p>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <div className="flex items-center gap-2 text-sm font-medium text-[var(--balance-bluegrey-deep)]">
           <Stethoscope className="h-4 w-4" />
           診所預約

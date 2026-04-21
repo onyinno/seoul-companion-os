@@ -80,7 +80,7 @@ export function DashboardScreen() {
         <motion.section
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] shadow-soft-lg"
+          className="surface-raised-hero overflow-hidden rounded-3xl"
         >
           <div className="p-5">
             <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
@@ -113,7 +113,7 @@ export function DashboardScreen() {
           </div>
         </motion.section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
               <CalendarDays className="h-4 w-4" />
@@ -127,7 +127,7 @@ export function DashboardScreen() {
           ) : (
             <ul className="mt-2 space-y-2 text-sm">
               {todayPreview.map((item) => (
-                <li key={item.id} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-3">
+                <li key={item.id} className="surface-raised-soft rounded-2xl p-3">
                   <p className="font-medium text-[var(--text-main)]">{item.time} {item.title}</p>
                   <p className="mt-1 text-[var(--text-muted)]">{item.place}</p>
                 </li>
@@ -139,13 +139,13 @@ export function DashboardScreen() {
           </Link>
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
             <TicketCheck className="h-4 w-4" />
             下一個預約
           </h2>
           {nextBooking ? (
-            <div className="mt-2 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-3">
+            <div className="surface-raised-soft mt-2 rounded-2xl p-3">
               <p className="text-sm font-medium text-[var(--text-main)]">{nextBooking.label}</p>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">{nextBooking.detail}</p>
             </div>
@@ -157,7 +157,7 @@ export function DashboardScreen() {
           </Link>
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
             <ClipboardCheck className="h-4 w-4" />
             準備進度
@@ -178,7 +178,7 @@ export function DashboardScreen() {
           </Link>
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
             <ShoppingBag className="h-4 w-4" />
             購物提醒
@@ -196,7 +196,7 @@ export function DashboardScreen() {
           </Link>
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">快捷入口</h2>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Link href="/trip" className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-center text-sm font-medium text-[var(--balance-bluegrey-deep)]">行程</Link>

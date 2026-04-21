@@ -8,6 +8,8 @@
   --bg-surface: #FBF8F4;
   --bg-card: #FFFDF9;
   --border-soft: #E5DED5;
+  --surface-raised-bg: #FFFEFC;
+  --surface-raised-border: rgba(229, 222, 213, 0.6);
 
   --text-main: #172233;
   --text-secondary: #6B7890;
@@ -28,6 +30,8 @@
   --bg-surface: #1a202a;
   --bg-card: #202734;
   --border-soft: #2f3a4d;
+  --surface-raised-bg: #242d3b;
+  --surface-raised-border: rgba(115, 131, 158, 0.24);
 
   --text-main: #edf3fb;
   --text-secondary: #c2cee0;
@@ -50,4 +54,32 @@ body {
   background: var(--bg-app);
   color: var(--text-main);
   @apply antialiased;
+}
+
+@layer components {
+  .surface-raised {
+    background: var(--surface-raised-bg);
+    border: 1px solid var(--surface-raised-border);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.78) inset,
+      0 6px 18px rgba(71, 90, 114, 0.08),
+      0 1px 2px rgba(71, 90, 114, 0.05);
+  }
+
+  .surface-raised-hero {
+    background: var(--surface-raised-bg);
+    border: 1px solid var(--surface-raised-border);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.82) inset,
+      0 10px 24px rgba(71, 90, 114, 0.1),
+      0 2px 4px rgba(71, 90, 114, 0.06);
+  }
+
+  .surface-raised-soft {
+    background: color-mix(in srgb, var(--surface-raised-bg) 92%, var(--bg-surface) 8%);
+    border: 1px solid color-mix(in srgb, var(--surface-raised-border) 75%, transparent);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.72) inset,
+      0 3px 10px rgba(71, 90, 114, 0.06);
+  }
 }

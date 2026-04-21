@@ -128,7 +128,7 @@ export function ShoppingScreen() {
           <p className="text-sm text-[var(--text-muted)]">首爾採買清單，保持從容節奏與清晰優先順序。</p>
         </header>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm text-[var(--text-secondary)]">採買進度</p>
@@ -146,7 +146,7 @@ export function ShoppingScreen() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+        <section className="surface-raised rounded-3xl p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">採買項目</h2>
             <Button onClick={openCreateSheet} className="rounded-xl bg-[var(--accent-strong)] px-3 py-2 text-xs text-[var(--bg-card)]">
@@ -156,7 +156,7 @@ export function ShoppingScreen() {
         </section>
 
         <section className="space-y-3">
-          <article className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+          <article className="surface-raised rounded-3xl p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">待買</h2>
               <span className="rounded-full bg-[var(--bg-surface)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">{pendingItems.length} 項</span>
@@ -178,7 +178,7 @@ export function ShoppingScreen() {
             )}
           </article>
 
-          <article className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+          <article className="surface-raised rounded-3xl p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">已買</h2>
               <span className="rounded-full bg-[var(--bg-surface)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">{completedItems.length} 項</span>
@@ -205,7 +205,7 @@ export function ShoppingScreen() {
       {isSheetOpen && (
         <div className="fixed inset-0 z-[70] bg-[color:var(--balance-bluegrey-deep)]/45">
           <button className="h-full w-full" aria-label="關閉編輯面板" onClick={closeSheet} />
-          <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+          <section className="surface-raised absolute bottom-0 left-0 right-0 rounded-t-3xl p-4">
             <header className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-[var(--text-main)]">{editingItem ? '編輯採買項目' : '新增採買項目'}</h3>
               <Button onClick={closeSheet} className="rounded-full p-2 text-[var(--text-muted)]" aria-label="關閉">
@@ -280,7 +280,7 @@ export function ShoppingScreen() {
 
       {deletingItem && (
         <div className="fixed inset-0 z-[80] bg-[color:var(--balance-bluegrey-deep)]/45">
-          <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+          <section className="surface-raised absolute bottom-0 left-0 right-0 rounded-t-3xl p-4">
             <h3 className="text-lg font-semibold text-[var(--text-main)]">確認刪除採買項目？</h3>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">{deletingItem.title}</p>
             <p className="mt-1 text-xs text-[var(--text-muted)]">刪除後不會自動還原，請確認後再繼續。</p>
@@ -307,7 +307,7 @@ function ShoppingRow({
   onDelete: () => void;
 }) {
   return (
-    <li className={cn('rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2.5 shadow-soft', item.completed && 'opacity-85')}>
+    <li className={cn('surface-raised-soft rounded-2xl px-3 py-2.5', item.completed && 'opacity-85')}>
       <div className="flex items-start justify-between gap-2">
         <label className="flex min-w-0 flex-1 items-start gap-2">
           <input

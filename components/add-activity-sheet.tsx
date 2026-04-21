@@ -118,7 +118,7 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
   return (
     <div className="fixed inset-0 z-[60] bg-[color:var(--balance-bluegrey-deep)]/40">
       <button className="h-full w-full" aria-label="關閉活動面板" onClick={onClose} />
-      <section className="absolute bottom-0 left-0 right-0 rounded-t-3xl border-t border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised absolute bottom-0 left-0 right-0 rounded-t-3xl p-4">
         <header className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{mode === 'edit' ? '編輯活動' : '新增活動'}</h2>
           <Button onClick={onClose} aria-label="關閉" className="rounded-full p-2 text-[var(--text-secondary)]">

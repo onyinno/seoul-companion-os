@@ -33,7 +33,7 @@ export function SettingsScreen() {
         <p className="text-sm text-[var(--text-muted)]">按你的旅行節奏調整畫面，保持 calm、好讀、手機友善。</p>
       </header>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
           <Palette className="h-4 w-4" /> 主題色切換
         </h2>
@@ -57,7 +57,7 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
           <Type className="h-4 w-4" /> 字體大小
         </h2>
@@ -81,7 +81,7 @@ export function SettingsScreen() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
           <Moon className="h-4 w-4" /> 深色模式
         </h2>
@@ -96,7 +96,7 @@ export function SettingsScreen() {
         </label>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
           <SlidersHorizontal className="h-4 w-4" /> 視覺偏好
         </h2>

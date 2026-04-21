@@ -97,7 +97,7 @@ export function BudgetScreen() {
         <p className="text-sm text-[var(--text-muted)]">行程花費 + 購物金額整合統計，簡潔掌握首爾旅費節奏。</p>
       </header>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
           <Coins className="h-4 w-4" /> 預算總覽
         </h2>
@@ -118,7 +118,7 @@ export function BudgetScreen() {
         )}
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">編輯總預算</h2>
         <form className="mt-3 flex items-center gap-2" onSubmit={handleSaveBudget}>
           <input
@@ -135,7 +135,7 @@ export function BudgetScreen() {
         </form>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">購物預算追蹤</h2>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <StatCard label="購物預估" value={`₩${estimatedShoppingSpend.toLocaleString()}`} />
@@ -143,7 +143,7 @@ export function BudgetScreen() {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-[var(--border-soft)] bg-[var(--bg-card)] p-4 shadow-soft">
+      <section className="surface-raised rounded-3xl p-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
           <PieChart className="h-4 w-4" /> 類別支出
         </h2>
@@ -187,7 +187,7 @@ export function BudgetScreen() {
 
 function StatCard({ label, value, emphasize = false }: { label: string; value: string; emphasize?: boolean }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-2 py-2.5">
+    <div className="surface-raised-soft rounded-2xl px-2 py-2.5">
       <p className="text-[11px] text-[var(--text-muted)]">{label}</p>
       <p className={`mt-1 text-sm font-semibold ${emphasize ? 'text-[var(--accent-strong)]' : 'text-[var(--text-main)]'}`}>{value}</p>
     </div>
