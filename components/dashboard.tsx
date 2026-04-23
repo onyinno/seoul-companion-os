@@ -2,19 +2,16 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, ClipboardCheck, Plane, Plus, ShoppingBag, TicketCheck } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, Plane, ShoppingBag, TicketCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatDate } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
-import { Button } from '@/components/ui/button';
-import { AddActivitySheet } from '@/components/add-activity-sheet';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function DashboardScreen() {
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const { trip, days, activities, bookings, prepItems, shoppingItems, selectedDayId, addActivity, resetToSeed } = useTripStore();
+  const { trip, days, activities, bookings, prepItems, shoppingItems, selectedDayId } = useTripStore();
   const todayDay = days.find((d) => d.id === selectedDayId) ?? days[0];
   const todayActivities = activities
     .filter((a) => a.dayId === todayDay.id)
@@ -206,21 +203,7 @@ export function DashboardScreen() {
           </div>
         </section>
 
-        <section className="grid grid-cols-2 gap-2">
-          <Button onClick={() => setIsSheetOpen(true)} className="rounded-2xl bg-[var(--accent-strong)] px-3 py-3 text-xs font-medium text-[var(--bg-card)]">
-            <Plus className="mx-auto mb-1 h-4 w-4" /> 新增
-          </Button>
-          <Button onClick={resetToSeed} className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-3 text-xs font-medium text-[var(--balance-bluegrey-deep)]">重設預設資料</Button>
-        </section>
       </div>
-
-      <AddActivitySheet
-        open={isSheetOpen}
-        mode="create"
-        dayId={todayDay.id}
-        onClose={() => setIsSheetOpen(false)}
-        onSubmit={addActivity}
-      />
     </>
   );
 }

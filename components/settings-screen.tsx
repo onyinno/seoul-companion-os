@@ -24,7 +24,7 @@ const visualOptions: { value: VisualPreference; label: string; description: stri
 ];
 
 export function SettingsScreen() {
-  const { settings, setThemeColor, setFontSizeLevel, setDarkMode, setVisualPreference } = useTripStore();
+  const { settings, setThemeColor, setFontSizeLevel, setDarkMode, setVisualPreference, resetToSeed } = useTripStore();
 
   return (
     <div className="space-y-4">
@@ -118,6 +118,18 @@ export function SettingsScreen() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="surface-raised rounded-3xl p-4">
+        <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">維護操作</h2>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">僅在需要時使用，會將行程資料還原為初始狀態。</p>
+        <button
+          type="button"
+          onClick={resetToSeed}
+          className="mt-3 w-full rounded-xl border border-[var(--accent-soft)] bg-[var(--bg-surface)] px-3 py-2.5 text-sm font-medium text-[var(--accent-strong)]"
+        >
+          重設預設資料
+        </button>
       </section>
     </div>
   );

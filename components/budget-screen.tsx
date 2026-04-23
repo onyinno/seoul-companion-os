@@ -228,48 +228,6 @@ export function BudgetScreen() {
       </header>
 
       <section className="surface-raised rounded-3xl p-4">
-        <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">KRW ⇄ HKD 換算</h2>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">使用 Frankfurter 即時匯率，透過本 App 端點提供資料。</p>
-
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <label className="surface-raised-soft rounded-2xl p-3">
-            <span className="text-xs text-[var(--text-muted)]">韓元 KRW</span>
-            <input
-              type="number"
-              min={0}
-              value={krwInput}
-              onChange={(event) => handleKrwChange(event.target.value)}
-              className="mt-1 w-full bg-transparent text-lg font-semibold text-[var(--text-main)] outline-none"
-            />
-          </label>
-
-          <label className="surface-raised-soft rounded-2xl p-3">
-            <span className="text-xs text-[var(--text-muted)]">港幣 HKD</span>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={hkdInput}
-              onChange={(event) => handleHkdChange(event.target.value)}
-              className="mt-1 w-full bg-transparent text-lg font-semibold text-[var(--text-main)] outline-none"
-            />
-          </label>
-        </div>
-
-        <div className="mt-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
-          <p className="flex items-center gap-1">
-            <RefreshCcw className={`h-3.5 w-3.5 ${isRateLoading ? 'animate-spin' : ''}`} />
-            目前匯率：1 KRW = {exchangeRate.toFixed(6)} HKD
-          </p>
-          <p className="mt-1">更新時間：{isRateLoading ? '讀取中…' : lastUpdatedLabel}</p>
-          {rateError && <p className="mt-1 text-[var(--accent-strong)]">狀態：{rateError}</p>}
-          {isUsingFallback && (
-            <p className="mt-1 text-[var(--accent-strong)]">備註：目前使用備援匯率（快取或預設值），稍後會自動再嘗試即時更新。</p>
-          )}
-        </div>
-      </section>
-
-      <section className="surface-raised rounded-3xl p-4">
         <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--balance-bluegrey-deep)]">
           <Coins className="h-4 w-4" /> 預算總覽
         </h2>
@@ -351,6 +309,48 @@ export function BudgetScreen() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      <section className="surface-raised rounded-3xl p-4">
+        <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">KRW ⇄ HKD 換算</h2>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">使用 Frankfurter 即時匯率，並由本 App 端點統一提供資料。</p>
+
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className="surface-raised-soft rounded-2xl p-3">
+            <span className="text-xs text-[var(--text-muted)]">韓元 KRW</span>
+            <input
+              type="number"
+              min={0}
+              value={krwInput}
+              onChange={(event) => handleKrwChange(event.target.value)}
+              className="mt-1 w-full bg-transparent text-lg font-semibold text-[var(--text-main)] outline-none"
+            />
+          </label>
+
+          <label className="surface-raised-soft rounded-2xl p-3">
+            <span className="text-xs text-[var(--text-muted)]">港幣 HKD</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={hkdInput}
+              onChange={(event) => handleHkdChange(event.target.value)}
+              className="mt-1 w-full bg-transparent text-lg font-semibold text-[var(--text-main)] outline-none"
+            />
+          </label>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <p className="flex items-center gap-1">
+            <RefreshCcw className={`h-3.5 w-3.5 ${isRateLoading ? 'animate-spin' : ''}`} />
+            目前匯率：1 KRW = {exchangeRate.toFixed(6)} HKD
+          </p>
+          <p className="mt-1">更新時間：{isRateLoading ? '讀取中…' : lastUpdatedLabel}</p>
+          {rateError && <p className="mt-1 text-[var(--accent-strong)]">狀態：{rateError}</p>}
+          {isUsingFallback && (
+            <p className="mt-1 text-[var(--accent-strong)]">備註：目前使用備援匯率（快取或預設值），稍後會自動再嘗試即時更新。</p>
+          )}
         </div>
       </section>
     </div>
