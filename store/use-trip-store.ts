@@ -50,6 +50,15 @@ type ShoppingInput = {
   actualCost: number;
 };
 
+type TripBasicInfoInput = {
+  title: string;
+  startDate: string;
+  endDate: string;
+  departureDate: string;
+  baseArea: string;
+  hotel: string;
+};
+
 type TripState = {
   trip: Trip;
   days: ItineraryDay[];
@@ -64,6 +73,8 @@ type TripState = {
   selectDay: (dayId: string) => void;
   resetToSeed: () => void;
   setTotalBudget: (totalBudget: number) => void;
+  updateTripBasicInfo: (input: TripBasicInfoInput) => void;
+  setTripCoverImage: (coverImage: string) => void;
   addActivity: (input: ActivityInput) => void;
   updateActivity: (activityId: string, input: ActivityInput) => void;
   deleteActivity: (activityId: string) => void;
@@ -138,6 +149,31 @@ export const useTripStore = create<TripState>()(
       setTotalBudget: (totalBudget) => {
         const nextBudget = Number.isFinite(totalBudget) ? Math.max(0, Math.round(totalBudget)) : get().trip.totalBudget;
         set((state) => ({ trip: { ...state.trip, totalBudget: nextBudget } }));
+      },
+      updateTripBasicInfo: ({ title, startDate, endDate, departureDate, baseArea, hotel }) => {
+        const nextTitle = title.trim();
+        const nextBaseArea = baseArea.trim();
+        const nextHotel = hotel.trim();
+
+        set((state) => ({
+          trip: {
+            ...state.trip,
+            title: nextTitle || state.trip.title,
+            startDate: startDate || state.trip.startDate,
+            endDate: endDate || state.trip.endDate,
+            departureDate: departureDate || state.trip.departureDate,
+            baseArea: nextBaseArea || state.trip.baseArea,
+            hotel: nextHotel || state.trip.hotel
+          }
+        }));
+      },
+      setTripCoverImage: (coverImage) => {
+        set((state) => ({
+          trip: {
+            ...state.trip,
+            coverImage: coverImage.trim()
+          }
+        }));
       },
       addActivity: ({ dayId, category, time, place, address, googleMapsUrl, note, cost }) => {
         const dayActivities = get().activities.filter((activity) => activity.dayId === dayId);

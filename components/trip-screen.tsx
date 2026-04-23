@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ExternalLink, MapPin, Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, ExternalLink, Image as ImageIcon, MapPin, Plus, Save } from 'lucide-react';
 import { formatDate, googleMapsSearchUrl, weatherLabel } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
@@ -29,17 +29,85 @@ const categoryBadgeClass: Record<ActivityCategory, string> = {
   other: 'bg-[var(--bg-surface)] text-[var(--text-secondary)]'
 };
 
+const presetCovers = [
+  {
+    id: 'hangang-sunset',
+    label: '漢江日落',
+    description: '暖白天空 × 珊瑚晚霞 × 寧靜河面倒影',
+    style: 'linear-gradient(145deg, #f9f4ea 8%, #f3c4a8 42%, #dbb39a 64%, #a4b3c2 100%)'
+  },
+  {
+    id: 'hongdae-night',
+    label: '弘大夜色',
+    description: '柔和夜街感，帶一點克制霓虹',
+    style: 'linear-gradient(145deg, #222a38 5%, #3b4257 48%, #56607a 76%, #c18aa6 100%)'
+  },
+  {
+    id: 'seongsu-industrial',
+    label: '聖水工業感',
+    description: '柔灰混凝土 × 藍灰平衡 × 極簡質感',
+    style: 'linear-gradient(145deg, #d9dce1 0%, #bfc6cf 45%, #93a2b1 100%)'
+  },
+  {
+    id: 'seoul-morning',
+    label: '首爾晨光',
+    description: '淡黃晨光與微霧，乾淨而平靜',
+    style: 'linear-gradient(145deg, #f9f1d7 0%, #f1e6c3 45%, #d6dde6 100%)'
+  }
+] as const;
+
+const defaultCoverId = presetCovers[0].id;
+const coverValueFromPreset = (id: string) => `preset:${id}`;
+
+const resolveCoverPreview = (coverImage: string) => {
+  if (coverImage.startsWith('http://') || coverImage.startsWith('https://')) {
+    return { type: 'image' as const, value: coverImage };
+  }
+
+  if (coverImage.startsWith('preset:')) {
+    const id = coverImage.replace('preset:', '');
+    const matched = presetCovers.find((cover) => cover.id === id);
+    if (matched) return { type: 'gradient' as const, value: matched.style };
+  }
+
+  const fallback = presetCovers.find((cover) => cover.id === defaultCoverId) ?? presetCovers[0];
+  return { type: 'gradient' as const, value: fallback.style };
+};
+
 export function TripScreen() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [deletingActivity, setDeletingActivity] = useState<Activity | null>(null);
+  const [coverMode, setCoverMode] = useState<'preset' | 'url'>('preset');
+  const [selectedPresetCover, setSelectedPresetCover] = useState<string>(defaultCoverId);
+  const [customCoverUrl, setCustomCoverUrl] = useState('');
+  const [tripTitle, setTripTitle] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [departureDate, setDepartureDate] = useState('');
+  const [baseArea, setBaseArea] = useState('');
+  const [hotel, setHotel] = useState('');
+  const [savedState, setSavedState] = useState<'idle' | 'saved'>('idle');
 
-  const { days, activities, selectedDayId, selectDay, addActivity, updateActivity, deleteActivity, moveActivityUp, moveActivityDown } = useTripStore();
+  const {
+    trip,
+    days,
+    activities,
+    selectedDayId,
+    selectDay,
+    addActivity,
+    updateActivity,
+    deleteActivity,
+    moveActivityUp,
+    moveActivityDown,
+    updateTripBasicInfo,
+    setTripCoverImage
+  } = useTripStore();
   const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
   const dayActivities = useMemo(
     () => activities.filter((activity) => activity.dayId === selectedDay.id).sort((a, b) => a.order - b.order),
     [activities, selectedDay.id]
   );
+  const coverPreview = useMemo(() => resolveCoverPreview(trip.coverImage), [trip.coverImage]);
 
   const buildActivityMapQuery = (activity: Activity) => {
     const overrideUrl = activity.googleMapsUrl?.trim();
@@ -66,6 +134,26 @@ export function TripScreen() {
       document.body.style.overflow = previousOverflow;
     };
   }, [deletingActivity]);
+
+  useEffect(() => {
+    setTripTitle(trip.title);
+    setEndDate(trip.endDate);
+    setDepartureDate(trip.departureDate);
+    setBaseArea(trip.baseArea);
+    setHotel(trip.hotel);
+
+    if (trip.coverImage.startsWith('http://') || trip.coverImage.startsWith('https://')) {
+      setCoverMode('url');
+      setCustomCoverUrl(trip.coverImage);
+      return;
+    }
+
+    const presetId = trip.coverImage.startsWith('preset:') ? trip.coverImage.replace('preset:', '') : defaultCoverId;
+    const matchedPreset = presetCovers.find((cover) => cover.id === presetId)?.id ?? defaultCoverId;
+    setCoverMode('preset');
+    setSelectedPresetCover(matchedPreset);
+    setCustomCoverUrl('');
+  }, [trip]);
 
   const handleCloseSheet = () => {
     setIsSheetOpen(false);
@@ -105,6 +193,26 @@ export function TripScreen() {
     setDeletingActivity(null);
   };
 
+  const handleSaveTripInfo = () => {
+    updateTripBasicInfo({
+      title: tripTitle,
+      startDate: departureDate,
+      endDate,
+      departureDate,
+      baseArea,
+      hotel
+    });
+
+    if (coverMode === 'url') {
+      setTripCoverImage(customCoverUrl);
+    } else {
+      setTripCoverImage(coverValueFromPreset(selectedPresetCover));
+    }
+
+    setSavedState('saved');
+    window.setTimeout(() => setSavedState('idle'), 1500);
+  };
+
   return (
     <>
       <div className="space-y-4">
@@ -112,6 +220,104 @@ export function TripScreen() {
           <h1 className="text-2xl font-semibold">行程</h1>
           <p className="text-sm text-[var(--text-muted)]">首爾單一行程 · 使用上移 / 下移穩定排序</p>
         </header>
+
+        <section className="surface-raised overflow-hidden rounded-3xl">
+          <div className="relative h-36 w-full">
+            {coverPreview.type === 'image' ? (
+              <div
+                className="h-full w-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${coverPreview.value})` }}
+                aria-label="旅程封面預覽"
+              />
+            ) : (
+              <div className="h-full w-full" style={{ background: coverPreview.value }} aria-label="旅程封面預覽" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
+            <div className="absolute bottom-3 left-4 right-4 text-[var(--bg-card)]">
+              <p className="text-xs opacity-90">旅程封面</p>
+              <p className="line-clamp-1 text-base font-semibold">{trip.title}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3 p-4">
+            <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">旅程基本資料</h2>
+            <div className="grid grid-cols-1 gap-2">
+              <Field label="旅程名稱" value={tripTitle} onChange={setTripTitle} placeholder="例如：2026 首爾療癒散步旅" />
+              <div className="grid grid-cols-2 gap-2">
+                <DateField label="出發日期" value={departureDate} onChange={setDepartureDate} />
+                <DateField label="回程日期" value={endDate} onChange={setEndDate} />
+              </div>
+              <Field label="Base area" value={baseArea} onChange={setBaseArea} placeholder="例如：弘大 / 聖水" />
+              <Field label="酒店名稱" value={hotel} onChange={setHotel} placeholder="例如：Maple Mansion Hongdae" />
+            </div>
+
+            <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--balance-bluegrey-deep)]">
+                <ImageIcon className="h-4 w-4" /> 封面設定
+              </h3>
+
+              <div className="mt-2 flex rounded-xl bg-[var(--bg-card)] p-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCoverMode('preset')}
+                  className={cn('flex-1 rounded-lg px-2 py-1.5', coverMode === 'preset' ? 'bg-[var(--balance-bluegrey-deep)] text-[var(--bg-card)]' : 'text-[var(--text-secondary)]')}
+                >
+                  精選封面
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCoverMode('url')}
+                  className={cn('flex-1 rounded-lg px-2 py-1.5', coverMode === 'url' ? 'bg-[var(--balance-bluegrey-deep)] text-[var(--bg-card)]' : 'text-[var(--text-secondary)]')}
+                >
+                  自訂網址
+                </button>
+              </div>
+
+              {coverMode === 'preset' ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {presetCovers.map((cover) => {
+                    const active = selectedPresetCover === cover.id;
+                    return (
+                      <button
+                        key={cover.id}
+                        type="button"
+                        onClick={() => setSelectedPresetCover(cover.id)}
+                        className={cn('overflow-hidden rounded-xl border text-left', active ? 'border-[var(--accent-primary)]' : 'border-[var(--border-soft)]')}
+                      >
+                        <div className="h-14 w-full" style={{ background: cover.style }} />
+                        <div className="p-2">
+                          <p className="text-xs font-medium text-[var(--text-main)]">{cover.label}</p>
+                          <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">{cover.description}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  <input
+                    type="url"
+                    value={customCoverUrl}
+                    onChange={(event) => setCustomCoverUrl(event.target.value)}
+                    placeholder="https://example.com/seoul-cover.jpg"
+                    className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-main)]"
+                  />
+                  <p className="text-[11px] text-[var(--text-muted)]">支援自訂圖片網址（本任務未包含上載檔案）。</p>
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleSaveTripInfo}
+              className="w-full rounded-xl bg-[var(--accent-strong)] px-4 py-2.5 text-sm font-medium text-[var(--bg-card)]"
+            >
+              <Save className="mr-1 h-4 w-4" />
+              儲存旅程資料
+            </Button>
+            {savedState === 'saved' && <p className="text-center text-xs text-[var(--text-secondary)]">已儲存，重新整理後仍會保留。</p>}
+          </div>
+        </section>
 
         <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
           {days.map((day) => (
@@ -242,5 +448,52 @@ export function TripScreen() {
         </div>
       )}
     </>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="space-y-1">
+      <span className="text-xs text-[var(--text-muted)]">{label}</span>
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-main)]"
+      />
+    </label>
+  );
+}
+
+function DateField({
+  label,
+  value,
+  onChange
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="space-y-1">
+      <span className="text-xs text-[var(--text-muted)]">{label}</span>
+      <input
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-2 text-sm text-[var(--text-main)]"
+      />
+    </label>
   );
 }
