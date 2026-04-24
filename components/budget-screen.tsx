@@ -1,10 +1,20 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { AlertTriangle, Coins, PieChart } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Coins, PieChart, RefreshCcw } from 'lucide-react';
 import { useTripStore } from '@/store/use-trip-store';
 
 type BudgetCategory = '餐飲' | '交通' | '住宿' | '觀光' | '購物' | '其他';
+
+type ExchangeRateApiResponse = {
+  base: 'KRW';
+  quote: 'HKD';
+  rate: number;
+  date: string | null;
+  fetchedAt: string;
+  source: 'frankfurter' | 'fallback';
+  isFallback: boolean;
+};
 
 const budgetCategories: BudgetCategory[] = ['餐飲', '交通', '住宿', '觀光', '購物', '其他'];
 
@@ -27,9 +37,19 @@ const categoryFromActivity: Record<string, BudgetCategory> = {
   other: '其他'
 };
 
+const SAFE_DEFAULT_RATE = 0.0057;
+const STORAGE_KEY = 'budget.exchange.krw_hkd';
+
 export function BudgetScreen() {
   const { trip, activities, shoppingItems, setTotalBudget } = useTripStore();
   const [editingBudget, setEditingBudget] = useState(String(trip.totalBudget));
+  const [exchangeRate, setExchangeRate] = useState<number>(SAFE_DEFAULT_RATE);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [isRateLoading, setIsRateLoading] = useState(true);
+  const [rateError, setRateError] = useState<string | null>(null);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const [krwInput, setKrwInput] = useState('10000');
+  const [hkdInput, setHkdInput] = useState((10000 * SAFE_DEFAULT_RATE).toFixed(2));
 
   const spentByCategory = useMemo(() => {
     const summary = Object.fromEntries(budgetCategories.map((category) => [category, 0])) as Record<BudgetCategory, number>;
@@ -85,10 +105,120 @@ export function BudgetScreen() {
     return `conic-gradient(${stops.join(', ')})`;
   }, [spentByCategory, totalSpent]);
 
+  useEffect(() => {
+    const bootstrap = () => {
+      try {
+        const savedRaw = localStorage.getItem(STORAGE_KEY);
+        if (!savedRaw) return;
+
+        const saved = JSON.parse(savedRaw) as { rate?: number; updatedAt?: string };
+        if (typeof saved.rate === 'number' && !Number.isNaN(saved.rate) && saved.rate > 0) {
+          setExchangeRate(saved.rate);
+          setKrwInput((krw) => (Number(krw || 0) || 0).toString());
+          setHkdInput((Number(krwInput || 0) * saved.rate).toFixed(2));
+          setLastUpdated(saved.updatedAt ?? null);
+        }
+      } catch {
+        // no-op
+      }
+    };
+
+    bootstrap();
+
+    const fetchRate = async () => {
+      setIsRateLoading(true);
+      setRateError(null);
+
+      try {
+        const response = await fetch('/api/exchange-rate', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error('無法取得即時匯率');
+        }
+
+        const data = (await response.json()) as ExchangeRateApiResponse;
+        if (typeof data.rate !== 'number' || Number.isNaN(data.rate) || data.rate <= 0) {
+          throw new Error('匯率格式異常');
+        }
+
+        if (data.source === 'frankfurter' && !data.isFallback) {
+          setExchangeRate(data.rate);
+          setLastUpdated(data.fetchedAt);
+          setIsUsingFallback(false);
+          setHkdInput((Number(krwInput || 0) * data.rate).toFixed(2));
+
+          localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({
+              rate: data.rate,
+              updatedAt: data.fetchedAt
+            })
+          );
+        } else {
+          throw new Error('服務目前使用備援匯率');
+        }
+      } catch (error) {
+        let recovered = false;
+        try {
+          const savedRaw = localStorage.getItem(STORAGE_KEY);
+          if (savedRaw) {
+            const saved = JSON.parse(savedRaw) as { rate?: number; updatedAt?: string };
+            if (typeof saved.rate === 'number' && !Number.isNaN(saved.rate) && saved.rate > 0) {
+              setExchangeRate(saved.rate);
+              setLastUpdated(saved.updatedAt ?? null);
+              setHkdInput((Number(krwInput || 0) * saved.rate).toFixed(2));
+              recovered = true;
+            }
+          }
+        } catch {
+          // no-op
+        }
+
+        if (!recovered) {
+          setExchangeRate(SAFE_DEFAULT_RATE);
+          setHkdInput((Number(krwInput || 0) * SAFE_DEFAULT_RATE).toFixed(2));
+        }
+
+        setIsUsingFallback(true);
+        setRateError(error instanceof Error ? error.message : '匯率服務暫時不可用');
+      } finally {
+        setIsRateLoading(false);
+      }
+    };
+
+    fetchRate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSaveBudget = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setTotalBudget(Number(editingBudget || 0));
   };
+
+  const handleKrwChange = (value: string) => {
+    setKrwInput(value);
+    const numeric = Number(value || 0);
+    if (!Number.isNaN(numeric)) {
+      setHkdInput((numeric * exchangeRate).toFixed(2));
+    }
+  };
+
+  const handleHkdChange = (value: string) => {
+    setHkdInput(value);
+    const numeric = Number(value || 0);
+    if (!Number.isNaN(numeric)) {
+      const nextKrw = exchangeRate <= 0 ? 0 : numeric / exchangeRate;
+      setKrwInput(nextKrw.toFixed(0));
+    }
+  };
+
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdated) return '尚無更新時間';
+    const formatted = new Intl.DateTimeFormat('zh-HK', {
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    }).format(new Date(lastUpdated));
+    return formatted;
+  }, [lastUpdated]);
 
   return (
     <div className="space-y-4">
@@ -179,6 +309,48 @@ export function BudgetScreen() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      <section className="surface-raised rounded-3xl p-4">
+        <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">KRW ⇄ HKD 換算</h2>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">使用 Frankfurter 即時匯率，並由本 App 端點統一提供資料。</p>
+
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className="surface-raised-soft rounded-2xl p-3">
+            <span className="text-xs text-[var(--text-muted)]">韓元 KRW</span>
+            <input
+              type="number"
+              min={0}
+              value={krwInput}
+              onChange={(event) => handleKrwChange(event.target.value)}
+              className="mt-1 w-full bg-transparent text-lg font-semibold text-[var(--text-main)] outline-none"
+            />
+          </label>
+
+          <label className="surface-raised-soft rounded-2xl p-3">
+            <span className="text-xs text-[var(--text-muted)]">港幣 HKD</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={hkdInput}
+              onChange={(event) => handleHkdChange(event.target.value)}
+              className="mt-1 w-full bg-transparent text-lg font-semibold text-[var(--text-main)] outline-none"
+            />
+          </label>
+        </div>
+
+        <div className="mt-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+          <p className="flex items-center gap-1">
+            <RefreshCcw className={`h-3.5 w-3.5 ${isRateLoading ? 'animate-spin' : ''}`} />
+            目前匯率：1 KRW = {exchangeRate.toFixed(6)} HKD
+          </p>
+          <p className="mt-1">更新時間：{isRateLoading ? '讀取中…' : lastUpdatedLabel}</p>
+          {rateError && <p className="mt-1 text-[var(--accent-strong)]">狀態：{rateError}</p>}
+          {isUsingFallback && (
+            <p className="mt-1 text-[var(--accent-strong)]">備註：目前使用備援匯率（快取或預設值），稍後會自動再嘗試即時更新。</p>
+          )}
         </div>
       </section>
     </div>
