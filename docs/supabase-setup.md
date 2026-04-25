@@ -1,0 +1,64 @@
+# Supabase Setup (v2 Foundation)
+
+本文件僅用於 **v2 前置設定**，目前不會變更 v1 行為，也不會啟用圖片上傳 UI 或完整雲端同步。
+
+## 1) 建立 Supabase 專案
+
+1. 前往 Supabase Dashboard 建立（或選擇）專案。
+2. 於專案設定中取得以下 **public client** 設定：
+   - Project URL
+   - Publishable key（anon / publishable）
+
+需要的環境變數：
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+## 2) 啟用 Anonymous Sign-ins
+
+在 Supabase Dashboard：
+
+1. 進入 **Authentication**。
+2. 啟用 **Anonymous** 登入。
+
+這是未來跨裝置照片功能的最小身份基礎。
+
+## 3) 建立私有 Storage bucket
+
+在 Supabase Dashboard：
+
+1. 進入 **Storage**。
+2. 建立 bucket。
+3. bucket 名稱必須使用：`trip-photos`。
+4. 設定為 **private**（非公開）。
+
+## 4) 設定 Vercel Environment Variables
+
+在 Vercel 專案設定中加入：
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+建議依需求分別配置到 Production / Preview / Development。
+
+## 5) 本地開發 `.env.local`
+
+請手動建立 `.env.local`（不要提交）：
+
+```bash
+cp .env.example .env.local
+```
+
+再填入 `NEXT_PUBLIC_SUPABASE_*` 的實際值。
+
+## 6) 安全注意事項
+
+- **絕對不要提交** `.env.local`。
+- **絕對不要提交** `service_role` key。
+- client 端僅可使用 `NEXT_PUBLIC_SUPABASE_*`。
+
+## 7) v2 方向（尚未在此 PR 實作）
+
+- 照片上傳 UI 會在後續版本加入。
+- 跨裝置雲端同步會在後續版本逐步導入。
+- 本次僅建立 Supabase client / auth / storage helper 基礎，不改變現有 v1 流程。
