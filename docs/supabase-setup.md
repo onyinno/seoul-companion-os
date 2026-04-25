@@ -14,14 +14,27 @@
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 
-## 2) 啟用 Anonymous Sign-ins
+## 2) 啟用登入方式（Shared account + Anonymous fallback）
+
+### 2-1) Email / Password（建議給私人情侶共用）
+
+在 Supabase Dashboard：
+
+1. 進入 **Authentication**。
+2. 啟用 **Email** provider。
+3. 建立一組要給雙方裝置共用的帳號（同一 Email / password）。
+
+目前私人雙人使用情境下，建議兩支手機都登入同一組 Supabase 帳戶，作為「同一份資料」的身份基礎。
+
+### 2-2) Anonymous（保留相容）
 
 在 Supabase Dashboard：
 
 1. 進入 **Authentication**。
 2. 啟用 **Anonymous** 登入。
 
-這是未來跨裝置照片功能的最小身份基礎。
+匿名登入仍可作為 fallback，避免未登入共享帳戶時功能直接失效。
+但匿名帳戶是「每台裝置各自獨立」，不適合跨裝置共享資料。
 
 ## 3) 建立私有 Storage bucket
 
@@ -77,5 +90,6 @@ cp .env.example .env.local
 ## 7) v2 方向（尚未在此 PR 實作）
 
 - 照片上傳 UI 會在後續版本加入。
-- 跨裝置雲端同步會在後續版本逐步導入。
+- 真正的跨裝置同步仍會在後續版本逐步導入（例如 `trip_members` 多成員資料模型）。
+- 在 `trip_members` 上線前，若要讓兩台裝置看到同一份旅行資料，請先使用「同一個 shared Supabase 帳戶」登入。
 - 本次僅建立 Supabase client / auth / storage helper 基礎，不改變現有 v1 流程。
