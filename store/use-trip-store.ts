@@ -88,6 +88,7 @@ type TripState = {
   addShoppingItem: (input: ShoppingInput) => void;
   updateShoppingItem: (itemId: string, input: ShoppingInput) => void;
   setShoppingItemPhoto: (itemId: string, photo: ShoppingItem['photo']) => void;
+  setShoppingItems: (items: ShoppingItem[]) => void;
   removeShoppingItem: (itemId: string) => Promise<void>;
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontSizeLevel: (fontSizeLevel: FontSizeLevel) => void;
@@ -356,6 +357,9 @@ export const useTripStore = create<TripState>()(
           };
         });
         set({ shoppingItems });
+      },
+      setShoppingItems: (items) => {
+        set({ shoppingItems: items });
       },
       removeShoppingItem: async (itemId) => {
         const target = get().shoppingItems.find((item) => item.id === itemId);

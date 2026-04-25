@@ -3,8 +3,15 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Pencil, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ensureAnonymousSupabaseUserWithReason } from '@/lib/supabase-auth';
+import { ensureAnonymousSupabaseUserWithReason, getSupabaseUser } from '@/lib/supabase-auth';
 import { getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
+import {
+  deleteShoppingItem as deleteShoppingItemFromSupabase,
+  fetchShoppingItems,
+  subscribeToShoppingItemsChanges,
+  upsertShoppingItem,
+  upsertShoppingItemsBatch
+} from '@/lib/supabase-shopping';
 import {
   SUPABASE_TRIP_PHOTOS_BUCKET,
   buildShoppingImagePath,
@@ -146,7 +153,7 @@ function createJpegBlobFromImage(file: File): Promise<Blob> {
 }
 
 export function ShoppingScreen() {
-  const { shoppingItems, toggleShoppingItem, addShoppingItem, updateShoppingItem, setShoppingItemPhoto, removeShoppingItem } =
+  const { shoppingItems, toggleShoppingItem, addShoppingItem, updateShoppingItem, setShoppingItemPhoto, removeShoppingItem, setShoppingItems } =
     useTripStore();
   const [form, setForm] = useState<ShoppingFormState>(defaultForm);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -155,11 +162,101 @@ export function ShoppingScreen() {
   const [signedPhotoCache, setSignedPhotoCache] = useState<Record<string, SignedPhotoCache>>({});
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [sharedUserId, setSharedUserId] = useState('');
 
   const pendingItems = useMemo(() => shoppingItems.filter((item) => !item.completed), [shoppingItems]);
   const completedItems = useMemo(() => shoppingItems.filter((item) => item.completed), [shoppingItems]);
   const completedCount = completedItems.length;
   const totalCount = shoppingItems.length;
+
+  const refreshSharedUser = async (): Promise<string> => {
+    const user = await getSupabaseUser();
+    const nextUserId = user?.id && !user.is_anonymous ? user.id : '';
+    setSharedUserId(nextUserId);
+    return nextUserId;
+  };
+
+  const pullShoppingItemsFromCloud = async (params?: { skipInitialMigration?: boolean }) => {
+    const userId = await refreshSharedUser();
+    if (!userId) {
+      return;
+    }
+
+    const localItems = useTripStore.getState().shoppingItems;
+    const cloudResult = await fetchShoppingItems();
+    if (cloudResult.error) {
+      return;
+    }
+
+    if (cloudResult.items.length === 0 && localItems.length > 0 && !params?.skipInitialMigration) {
+      const migrationResult = await upsertShoppingItemsBatch(localItems);
+      if (!migrationResult.success) {
+        return;
+      }
+      return;
+    }
+
+    setShoppingItems(cloudResult.items);
+  };
+
+  const pushShoppingItemToCloud = async (itemId: string) => {
+    const userId = sharedUserId || (await refreshSharedUser());
+    if (!userId) {
+      return;
+    }
+    const item = useTripStore.getState().shoppingItems.find((current) => current.id === itemId);
+    if (!item) {
+      return;
+    }
+    await upsertShoppingItem(item);
+  };
+
+  const removeShoppingItemFromCloud = async (itemId: string) => {
+    const userId = sharedUserId || (await refreshSharedUser());
+    if (!userId) {
+      return;
+    }
+    await deleteShoppingItemFromSupabase(itemId);
+  };
+
+  useEffect(() => {
+    void pullShoppingItemsFromCloud();
+  }, []);
+
+  useEffect(() => {
+    const reloadOnFocus = () => {
+      void pullShoppingItemsFromCloud({ skipInitialMigration: true });
+    };
+
+    window.addEventListener('focus', reloadOnFocus);
+    document.addEventListener('visibilitychange', reloadOnFocus);
+
+    return () => {
+      window.removeEventListener('focus', reloadOnFocus);
+      document.removeEventListener('visibilitychange', reloadOnFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sharedUserId) {
+      return;
+    }
+
+    let unsubscribe: (() => void) | null = null;
+    void subscribeToShoppingItemsChanges(() => {
+      void pullShoppingItemsFromCloud({ skipInitialMigration: true });
+    }).then((result) => {
+      if (!result.error) {
+        unsubscribe = result.unsubscribe;
+      }
+    });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [sharedUserId]);
 
   useEffect(() => {
     const now = Date.now();
@@ -255,8 +352,13 @@ export function ShoppingScreen() {
 
     if (editingItem) {
       updateShoppingItem(editingItem.id, payload);
+      void pushShoppingItemToCloud(editingItem.id);
     } else {
       addShoppingItem(payload);
+      const created = useTripStore.getState().shoppingItems.at(-1);
+      if (created?.id) {
+        void pushShoppingItemToCloud(created.id);
+      }
     }
 
     closeSheet();
@@ -336,6 +438,7 @@ export function ShoppingScreen() {
 
       setShoppingItemPhoto(editingItem.id, nextPhoto);
       setEditingItem((prev) => (prev ? { ...prev, photo: nextPhoto } : prev));
+      void pushShoppingItemToCloud(editingItem.id);
 
       if (previousPath) {
         const cleanupResult = await deleteSupabaseStorageImage(previousPath);
@@ -377,6 +480,7 @@ export function ShoppingScreen() {
 
     setShoppingItemPhoto(editingItem.id, undefined);
     setEditingItem((prev) => (prev ? { ...prev, photo: undefined } : prev));
+    void pushShoppingItemToCloud(editingItem.id);
     setSignedPhotoCache((prev) => {
       const next = { ...prev };
       delete next[targetPath];
@@ -387,7 +491,13 @@ export function ShoppingScreen() {
   const handleConfirmDelete = () => {
     if (!deletingItem) return;
     void removeShoppingItem(deletingItem.id);
+    void removeShoppingItemFromCloud(deletingItem.id);
     setDeletingItem(null);
+  };
+
+  const handleToggle = (itemId: string) => {
+    toggleShoppingItem(itemId);
+    void pushShoppingItemToCloud(itemId);
   };
 
   const getPhotoDisplayUrl = (item: ShoppingItem) => {
@@ -447,7 +557,7 @@ export function ShoppingScreen() {
                     item={item}
                     mapHref={buildShoppingMapHref(item)}
                     photoUrl={getPhotoDisplayUrl(item)}
-                    onToggle={() => toggleShoppingItem(item.id)}
+                    onToggle={() => handleToggle(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
                   />
@@ -471,7 +581,7 @@ export function ShoppingScreen() {
                     item={item}
                     mapHref={buildShoppingMapHref(item)}
                     photoUrl={getPhotoDisplayUrl(item)}
-                    onToggle={() => toggleShoppingItem(item.id)}
+                    onToggle={() => handleToggle(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
                   />

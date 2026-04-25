@@ -36,7 +36,7 @@
 匿名登入仍可作為 fallback，避免未登入共享帳戶時功能直接失效。
 但匿名帳戶是「每台裝置各自獨立」，不適合跨裝置共享資料。
 
-## 3) 建立私有 Storage bucket
+## 3) 建立私有 Storage bucket（相片檔案）
 
 在 Supabase Dashboard：
 
@@ -61,6 +61,19 @@
 - 使用者只能對自己的資料夾做 `insert/select/update/delete`
 
 > 注意：`trip-photos` 必須維持 **private**，不要改成 public。
+
+## 3-2) 建立 Shopping metadata table（Supabase Database）
+
+請到 Supabase Dashboard → **SQL Editor**，執行：
+
+- `docs/supabase-shopping-items.sql`
+
+此 table 用於同步購物清單的 metadata（名稱、價格、地圖連結、是否完成、相片 storage path 等）。
+在目前設計中：
+
+- `shared account` 登入後，兩台裝置會拿到同一個 `auth.uid()`（也就是同一個 `user_id`）
+- `shopping_items.user_id` 會綁定 `auth.uid()`
+- 透過 RLS policy，僅能讀寫自己的資料
 
 ## 4) 設定 Vercel Environment Variables
 
@@ -89,7 +102,11 @@ cp .env.example .env.local
 
 ## 7) v2 方向（尚未在此 PR 實作）
 
-- 照片上傳 UI 會在後續版本加入。
-- 真正的跨裝置同步仍會在後續版本逐步導入（例如 `trip_members` 多成員資料模型）。
+- Shopping 清單已可透過 Supabase Database 同步 metadata（目前僅 shopping 範圍）。
+- Shopping 照片檔案仍儲存在 Supabase Storage `trip-photos`，前端以 signed URL 暫時讀取。
+- signed URL 為短時效連結，不是永久公開網址。
+- Activity / itinerary / 其他模組的完整同步尚未導入。
+- Activity 照片上傳 UI 仍在後續版本加入。
+- 真正的跨成員模型仍會在後續版本逐步導入（例如 `trip_members` 多成員資料模型）。
 - 在 `trip_members` 上線前，若要讓兩台裝置看到同一份旅行資料，請先使用「同一個 shared Supabase 帳戶」登入。
-- 本次僅建立 Supabase client / auth / storage helper 基礎，不改變現有 v1 流程。
+- 本階段以「shared account + shopping 同步」為主，不變更既有路由架構與 v1 主要操作體驗。
