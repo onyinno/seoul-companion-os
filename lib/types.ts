@@ -144,6 +144,11 @@ export type ShoppingItem = {
   estimatedCost: number;
   actualCost: number;
   completed: boolean;
+  photo?: {
+    storagePath: string;
+    fileName: string;
+    updatedAt: string;
+  };
 };
 
 export type ShoppingData = {

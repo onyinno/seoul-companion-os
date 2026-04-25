@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { seoulSeedData } from '@/lib/seed';
+import { deleteSupabaseStorageImage } from '@/lib/supabase-storage';
 import type {
   Activity,
   ActivityCategory,
@@ -86,7 +87,8 @@ type TripState = {
   toggleShoppingItem: (itemId: string) => void;
   addShoppingItem: (input: ShoppingInput) => void;
   updateShoppingItem: (itemId: string, input: ShoppingInput) => void;
-  removeShoppingItem: (itemId: string) => void;
+  setShoppingItemPhoto: (itemId: string, photo: ShoppingItem['photo']) => void;
+  removeShoppingItem: (itemId: string) => Promise<void>;
   setThemeColor: (themeColor: ThemeColor) => void;
   setFontSizeLevel: (fontSizeLevel: FontSizeLevel) => void;
   setDarkMode: (darkMode: boolean) => void;
@@ -345,7 +347,30 @@ export const useTripStore = create<TripState>()(
         });
         set({ shoppingItems });
       },
-      removeShoppingItem: (itemId) => {
+      setShoppingItemPhoto: (itemId, photo) => {
+        const shoppingItems = get().shoppingItems.map((item) => {
+          if (item.id !== itemId) return item;
+          return {
+            ...item,
+            photo: photo ?? undefined
+          };
+        });
+        set({ shoppingItems });
+      },
+      removeShoppingItem: async (itemId) => {
+        const target = get().shoppingItems.find((item) => item.id === itemId);
+        if (target?.photo?.storagePath) {
+          const result = await deleteSupabaseStorageImage(target.photo.storagePath);
+          if (!result.success) {
+            console.warn('[shopping-photo] failed to cleanup storage object on item delete', {
+              itemId,
+              storagePath: target.photo.storagePath,
+              error: result.error?.message,
+              statusCode: result.error?.statusCode
+            });
+          }
+        }
+
         const shoppingItems = get().shoppingItems.filter((item) => item.id !== itemId);
         set({ shoppingItems });
       },

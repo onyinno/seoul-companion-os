@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/lib/supabase-client';
 export const SUPABASE_TRIP_PHOTOS_BUCKET = 'trip-photos';
 
 export function buildShoppingImagePath(userId: string, itemId: string, fileId: string): string {
-  return `${userId}/shopping/${itemId}/${fileId}`;
+  return `${userId}/shopping/${itemId}/${fileId}.jpg`;
 }
 
 export function buildActivityImagePath(userId: string, activityId: string, fileId: string): string {
@@ -17,15 +17,20 @@ type UploadImageParams = {
   upsert?: boolean;
 };
 
+export type SupabaseStorageError = {
+  message: string;
+  statusCode?: string;
+};
+
 export async function uploadImageToSupabaseStorage({
   path,
   file,
   contentType,
   upsert = false
-}: UploadImageParams): Promise<{ path: string | null; error: string | null }> {
+}: UploadImageParams): Promise<{ path: string | null; error: SupabaseStorageError | null }> {
   const client = getSupabaseClient();
   if (!client) {
-    return { path: null, error: 'supabase_disabled' };
+    return { path: null, error: { message: 'supabase_disabled' } };
   }
 
   const { data, error } = await client.storage.from(SUPABASE_TRIP_PHOTOS_BUCKET).upload(path, file, {
@@ -34,7 +39,13 @@ export async function uploadImageToSupabaseStorage({
   });
 
   if (error) {
-    return { path: null, error: error.message };
+    return {
+      path: null,
+      error: {
+        message: error.message,
+        statusCode: error.statusCode
+      }
+    };
   }
 
   return {
@@ -43,16 +54,22 @@ export async function uploadImageToSupabaseStorage({
   };
 }
 
-export async function deleteSupabaseStorageImage(path: string): Promise<{ success: boolean; error: string | null }> {
+export async function deleteSupabaseStorageImage(path: string): Promise<{ success: boolean; error: SupabaseStorageError | null }> {
   const client = getSupabaseClient();
   if (!client) {
-    return { success: false, error: 'supabase_disabled' };
+    return { success: false, error: { message: 'supabase_disabled' } };
   }
 
   const { error } = await client.storage.from(SUPABASE_TRIP_PHOTOS_BUCKET).remove([path]);
 
   if (error) {
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: {
+        message: error.message,
+        statusCode: error.statusCode
+      }
+    };
   }
 
   return { success: true, error: null };
@@ -61,10 +78,10 @@ export async function deleteSupabaseStorageImage(path: string): Promise<{ succes
 export async function createSupabaseSignedImageUrl(
   path: string,
   expiresIn = 60 * 60
-): Promise<{ signedUrl: string | null; error: string | null }> {
+): Promise<{ signedUrl: string | null; error: SupabaseStorageError | null }> {
   const client = getSupabaseClient();
   if (!client) {
-    return { signedUrl: null, error: 'supabase_disabled' };
+    return { signedUrl: null, error: { message: 'supabase_disabled' } };
   }
 
   const { data, error } = await client.storage
@@ -72,7 +89,13 @@ export async function createSupabaseSignedImageUrl(
     .createSignedUrl(path, expiresIn);
 
   if (error) {
-    return { signedUrl: null, error: error.message };
+    return {
+      signedUrl: null,
+      error: {
+        message: error.message,
+        statusCode: error.statusCode
+      }
+    };
   }
 
   return {

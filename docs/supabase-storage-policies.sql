@@ -12,9 +12,6 @@
 --   Run this SQL in Supabase SQL Editor before enabling any photo upload UI.
 --   Do NOT use service_role in client code.
 
--- Optional safety: ensure RLS is enabled on storage.objects.
-alter table storage.objects enable row level security;
-
 -- Clean up existing policies with the same names (safe to re-run).
 drop policy if exists "trip_photos_insert_own_folder" on storage.objects;
 drop policy if exists "trip_photos_select_own_folder" on storage.objects;

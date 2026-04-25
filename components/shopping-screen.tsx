@@ -1,8 +1,17 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Pencil, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ensureAnonymousSupabaseUserWithReason } from '@/lib/supabase-auth';
+import { getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
+import {
+  SUPABASE_TRIP_PHOTOS_BUCKET,
+  buildShoppingImagePath,
+  createSupabaseSignedImageUrl,
+  deleteSupabaseStorageImage,
+  uploadImageToSupabaseStorage
+} from '@/lib/supabase-storage';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn, googleMapsSearchUrl } from '@/lib/utils';
 import type { ShoppingAreaTag, ShoppingCategory, ShoppingItem } from '@/lib/types';
@@ -62,17 +71,123 @@ const defaultForm: ShoppingFormState = {
   actualCost: '0'
 };
 
+const SIGNED_URL_TTL_SECONDS = 60 * 30;
+
+type SignedPhotoCache = {
+  url: string;
+  expiresAt: number;
+};
+
+const PHOTO_UPLOAD_MAX_BYTES = 1024 * 1024;
+
+function mapUploadErrorMessage(params: {
+  code?: string;
+  statusCode?: string;
+  missingEnv?: string[];
+}): string {
+  if (params.missingEnv && params.missingEnv.length > 0) {
+    return 'Supabase 未完成設定，請檢查環境變數';
+  }
+
+  if (params.code === 'anonymous_signin_failed' || params.code === 'anonymous_signin_exception' || params.code === 'anonymous_user_missing_id') {
+    return '未能建立匿名登入，請稍後再試';
+  }
+
+  if (params.code === 'unsupported_file_type' || params.code === 'file_too_large') {
+    return '相片格式或大小不支援';
+  }
+
+  if (params.code === 'storage_permission_denied' || params.statusCode === '403') {
+    return '相片上載權限被拒，請檢查 Storage policy';
+  }
+
+  return '相片上載失敗，請稍後再試';
+}
+
+function createJpegBlobFromImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('canvas_context_unavailable'));
+        return;
+      }
+
+      context.drawImage(image, 0, 0);
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(objectUrl);
+          if (!blob) {
+            reject(new Error('image_conversion_failed'));
+            return;
+          }
+          resolve(blob);
+        },
+        'image/jpeg',
+        0.9
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('image_load_failed'));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
 export function ShoppingScreen() {
-  const { shoppingItems, toggleShoppingItem, addShoppingItem, updateShoppingItem, removeShoppingItem } = useTripStore();
+  const { shoppingItems, toggleShoppingItem, addShoppingItem, updateShoppingItem, setShoppingItemPhoto, removeShoppingItem } =
+    useTripStore();
   const [form, setForm] = useState<ShoppingFormState>(defaultForm);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
   const [deletingItem, setDeletingItem] = useState<ShoppingItem | null>(null);
+  const [signedPhotoCache, setSignedPhotoCache] = useState<Record<string, SignedPhotoCache>>({});
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const pendingItems = useMemo(() => shoppingItems.filter((item) => !item.completed), [shoppingItems]);
   const completedItems = useMemo(() => shoppingItems.filter((item) => item.completed), [shoppingItems]);
   const completedCount = completedItems.length;
   const totalCount = shoppingItems.length;
+
+  useEffect(() => {
+    const now = Date.now();
+    const paths = shoppingItems.map((item) => item.photo?.storagePath).filter((path): path is string => Boolean(path));
+    if (paths.length === 0) return;
+
+    void Promise.all(
+      paths.map(async (path) => {
+        const cached = signedPhotoCache[path];
+        if (cached && cached.expiresAt - now > 20_000) {
+          return;
+        }
+
+        const { signedUrl, error } = await createSupabaseSignedImageUrl(path, SIGNED_URL_TTL_SECONDS);
+        if (error || !signedUrl) {
+          return;
+        }
+
+        setSignedPhotoCache((prev) => ({
+          ...prev,
+          [path]: {
+            url: signedUrl,
+            expiresAt: Date.now() + SIGNED_URL_TTL_SECONDS * 1000
+          }
+        }));
+      })
+    );
+  }, [shoppingItems, signedPhotoCache]);
 
   const buildShoppingMapHref = (item: ShoppingItem) => {
     const overrideUrl = item.googleMapsUrl?.trim();
@@ -95,11 +210,13 @@ export function ShoppingScreen() {
   const openCreateSheet = () => {
     setEditingItem(null);
     resetForm();
+    setUploadError('');
     setIsSheetOpen(true);
   };
 
   const openEditSheet = (item: ShoppingItem) => {
     setEditingItem(item);
+    setUploadError('');
     setForm({
       title: item.title,
       category: item.category,
@@ -117,6 +234,7 @@ export function ShoppingScreen() {
   const closeSheet = () => {
     setIsSheetOpen(false);
     setEditingItem(null);
+    setUploadError('');
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -145,10 +263,137 @@ export function ShoppingScreen() {
     resetForm();
   };
 
+  const handleUploadPhoto = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !editingItem) return;
+
+    setUploadError('');
+    setIsUploadingPhoto(true);
+
+    try {
+      const missingEnv = getSupabaseMissingEnvKeys();
+      if (missingEnv.length > 0) {
+        console.warn('[shopping-photo] supabase env missing', { missingEnv });
+        setUploadError(mapUploadErrorMessage({ missingEnv }));
+        return;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        setUploadError(mapUploadErrorMessage({ code: 'unsupported_file_type' }));
+        return;
+      }
+
+      if (file.size > PHOTO_UPLOAD_MAX_BYTES) {
+        setUploadError(mapUploadErrorMessage({ code: 'file_too_large' }));
+        return;
+      }
+
+      const { user, reason } = await ensureAnonymousSupabaseUserWithReason();
+      if (!user?.id) {
+        console.warn('[shopping-photo] anonymous signin failed', { reason });
+        setUploadError(mapUploadErrorMessage({ code: reason ?? 'anonymous_signin_failed' }));
+        return;
+      }
+
+      const fileId = crypto.randomUUID();
+      const path = buildShoppingImagePath(user.id, editingItem.id, fileId);
+
+      console.info('[shopping-photo] uploading image', {
+        bucket: SUPABASE_TRIP_PHOTOS_BUCKET,
+        path,
+        fileType: file.type,
+        fileSize: file.size
+      });
+
+      const jpegBlob = await createJpegBlobFromImage(file);
+      const uploadResult = await uploadImageToSupabaseStorage({
+        path,
+        file: jpegBlob,
+        contentType: 'image/jpeg'
+      });
+
+      if (uploadResult.error || !uploadResult.path) {
+        const statusCode = uploadResult.error?.statusCode;
+        const errorMessage = uploadResult.error?.message ?? 'upload_failed';
+        const mappedCode = statusCode === '403' ? 'storage_permission_denied' : errorMessage;
+
+        console.warn('[shopping-photo] upload failed', {
+          path,
+          statusCode,
+          errorMessage
+        });
+        setUploadError(mapUploadErrorMessage({ code: mappedCode, statusCode }));
+        return;
+      }
+
+      const previousPath = editingItem.photo?.storagePath;
+      const nextPhoto = {
+        storagePath: uploadResult.path,
+        fileName: file.name,
+        updatedAt: new Date().toISOString()
+      };
+
+      setShoppingItemPhoto(editingItem.id, nextPhoto);
+      setEditingItem((prev) => (prev ? { ...prev, photo: nextPhoto } : prev));
+
+      if (previousPath) {
+        const cleanupResult = await deleteSupabaseStorageImage(previousPath);
+        if (!cleanupResult.success) {
+          console.warn('[shopping-photo] failed to delete old photo during replace', {
+            itemId: editingItem.id,
+            storagePath: previousPath,
+            error: cleanupResult.error?.message,
+            statusCode: cleanupResult.error?.statusCode
+          });
+        }
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'upload_failed';
+      const errorCode =
+        reason === 'canvas_context_unavailable' || reason === 'image_conversion_failed' || reason === 'image_load_failed'
+          ? 'unsupported_file_type'
+          : reason;
+      console.warn('[shopping-photo] upload failed', { reason, error });
+      setUploadError(mapUploadErrorMessage({ code: errorCode }));
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!editingItem?.photo?.storagePath) return;
+
+    const targetPath = editingItem.photo.storagePath;
+    const result = await deleteSupabaseStorageImage(targetPath);
+    if (!result.success) {
+      console.warn('[shopping-photo] failed to remove photo', {
+        itemId: editingItem.id,
+        storagePath: targetPath,
+        error: result.error?.message,
+        statusCode: result.error?.statusCode
+      });
+    }
+
+    setShoppingItemPhoto(editingItem.id, undefined);
+    setEditingItem((prev) => (prev ? { ...prev, photo: undefined } : prev));
+    setSignedPhotoCache((prev) => {
+      const next = { ...prev };
+      delete next[targetPath];
+      return next;
+    });
+  };
+
   const handleConfirmDelete = () => {
     if (!deletingItem) return;
-    removeShoppingItem(deletingItem.id);
+    void removeShoppingItem(deletingItem.id);
     setDeletingItem(null);
+  };
+
+  const getPhotoDisplayUrl = (item: ShoppingItem) => {
+    const path = item.photo?.storagePath;
+    if (!path) return '';
+    return signedPhotoCache[path]?.url ?? '';
   };
 
   return (
@@ -201,6 +446,7 @@ export function ShoppingScreen() {
                     key={item.id}
                     item={item}
                     mapHref={buildShoppingMapHref(item)}
+                    photoUrl={getPhotoDisplayUrl(item)}
                     onToggle={() => toggleShoppingItem(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
@@ -224,6 +470,7 @@ export function ShoppingScreen() {
                     key={item.id}
                     item={item}
                     mapHref={buildShoppingMapHref(item)}
+                    photoUrl={getPhotoDisplayUrl(item)}
                     onToggle={() => toggleShoppingItem(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
@@ -324,6 +571,37 @@ export function ShoppingScreen() {
                   />
                 </label>
               </div>
+              {editingItem && (
+                <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-3">
+                  <p className="text-xs font-medium text-[var(--text-secondary)]">商品相片</p>
+                  {editingItem.photo?.storagePath && getPhotoDisplayUrl(editingItem) ? (
+                    <img
+                      src={getPhotoDisplayUrl(editingItem)}
+                      alt={`${editingItem.title} 商品相片`}
+                      className="mt-2 h-24 w-24 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <p className="mt-2 text-xs text-[var(--text-muted)]">尚未新增相片</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <label className="inline-flex cursor-pointer items-center rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--balance-bluegrey-deep)]">
+                      {editingItem.photo?.storagePath ? '更換相片' : '新增相片'}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleUploadPhoto} disabled={isUploadingPhoto} />
+                    </label>
+                    {editingItem.photo?.storagePath && (
+                      <Button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-secondary)]"
+                      >
+                        移除相片
+                      </Button>
+                    )}
+                  </div>
+                  {isUploadingPhoto && <p className="mt-2 text-xs text-[var(--text-muted)]">正在上載...</p>}
+                  {uploadError && <p className="mt-2 text-xs text-[var(--accent-strong)]">{uploadError}</p>}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <Button type="button" onClick={closeSheet} className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-4 py-3 text-[var(--balance-bluegrey-deep)]">取消</Button>
                 <Button type="submit" className="rounded-xl bg-[var(--accent-strong)] px-4 py-3 text-[var(--bg-card)]">{editingItem ? '儲存變更' : '新增項目'}</Button>
@@ -353,12 +631,14 @@ export function ShoppingScreen() {
 function ShoppingRow({
   item,
   mapHref,
+  photoUrl,
   onToggle,
   onEdit,
   onDelete
 }: {
   item: ShoppingItem;
   mapHref: string;
+  photoUrl: string;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -366,6 +646,9 @@ function ShoppingRow({
   return (
     <li className={cn('surface-raised-soft rounded-2xl px-3 py-2.5', item.completed && 'opacity-85')}>
       <div className="flex items-start justify-between gap-2">
+        {item.photo?.storagePath && photoUrl && (
+          <img src={photoUrl} alt={`${item.title} 縮圖`} className="mt-1 h-12 w-12 shrink-0 rounded-lg object-cover" />
+        )}
         <label className="flex min-w-0 flex-1 items-start gap-2">
           <input
             type="checkbox"
