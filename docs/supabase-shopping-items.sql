@@ -40,6 +40,12 @@ before update on public.shopping_items
 for each row
 execute function public.set_shopping_items_updated_at();
 
+grant usage on schema public to authenticated;
+
+grant select, insert, update, delete
+on table public.shopping_items
+to authenticated;
+
 alter table public.shopping_items enable row level security;
 
 drop policy if exists "shopping_items_select_own" on public.shopping_items;

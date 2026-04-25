@@ -73,7 +73,8 @@
 
 - `shared account` 登入後，兩台裝置會拿到同一個 `auth.uid()`（也就是同一個 `user_id`）
 - `shopping_items.user_id` 會綁定 `auth.uid()`
-- 透過 RLS policy，僅能讀寫自己的資料
+- SQL 會授權 `authenticated` 角色可透過 Data API 存取 table（`select/insert/update/delete`）
+- 仍由 RLS policy 限制僅能讀寫 `user_id = auth.uid()` 的資料列
 
 ## 4) 設定 Vercel Environment Variables
 
