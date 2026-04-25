@@ -3,8 +3,15 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Pencil, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ensureAnonymousSupabaseUserWithReason } from '@/lib/supabase-auth';
-import { getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
+import { ensureAnonymousSupabaseUserWithReason, getSupabaseCurrentUser } from '@/lib/supabase-auth';
+import { getSupabaseClient, getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
+import {
+  deleteShoppingItem as deleteShoppingItemFromSupabase,
+  fetchShoppingItems,
+  subscribeToShoppingItemsChanges,
+  upsertShoppingItem,
+  upsertShoppingItemsBatch
+} from '@/lib/supabase-shopping';
 import {
   SUPABASE_TRIP_PHOTOS_BUCKET,
   buildShoppingImagePath,
@@ -79,6 +86,21 @@ type SignedPhotoCache = {
 };
 
 const PHOTO_UPLOAD_MAX_BYTES = 1024 * 1024;
+const CLOUD_SYNC_WARNING = '雲端同步失敗，本機資料已保留';
+const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
+
+function logCloudSync(message: string, payload?: Record<string, unknown>) {
+  if (!IS_DEV_OR_PREVIEW) {
+    return;
+  }
+
+  if (payload) {
+    console.info(`[shopping-sync] ${message}`, payload);
+    return;
+  }
+
+  console.info(`[shopping-sync] ${message}`);
+}
 
 function mapUploadErrorMessage(params: {
   code?: string;
@@ -146,7 +168,7 @@ function createJpegBlobFromImage(file: File): Promise<Blob> {
 }
 
 export function ShoppingScreen() {
-  const { shoppingItems, toggleShoppingItem, addShoppingItem, updateShoppingItem, setShoppingItemPhoto, removeShoppingItem } =
+  const { shoppingItems, toggleShoppingItem, addShoppingItem, updateShoppingItem, setShoppingItemPhoto, removeShoppingItem, setShoppingItems } =
     useTripStore();
   const [form, setForm] = useState<ShoppingFormState>(defaultForm);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -155,11 +177,152 @@ export function ShoppingScreen() {
   const [signedPhotoCache, setSignedPhotoCache] = useState<Record<string, SignedPhotoCache>>({});
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [sharedUserId, setSharedUserId] = useState('');
+  const [cloudSyncWarning, setCloudSyncWarning] = useState('');
 
   const pendingItems = useMemo(() => shoppingItems.filter((item) => !item.completed), [shoppingItems]);
   const completedItems = useMemo(() => shoppingItems.filter((item) => item.completed), [shoppingItems]);
   const completedCount = completedItems.length;
   const totalCount = shoppingItems.length;
+
+  const refreshSharedUser = async (): Promise<string> => {
+    const user = await getSupabaseCurrentUser();
+    const nextUserId = user?.id && !user.is_anonymous ? user.id : '';
+    setSharedUserId(nextUserId);
+    logCloudSync('shared user resolved', { hasSharedUser: Boolean(nextUserId), userId: nextUserId || null });
+    return nextUserId;
+  };
+
+  const pullShoppingItemsFromCloud = async (params?: { skipInitialMigration?: boolean }) => {
+    const userId = await refreshSharedUser();
+    if (!userId) {
+      return;
+    }
+
+    setCloudSyncWarning('');
+    const localItems = useTripStore.getState().shoppingItems;
+    const cloudResult = await fetchShoppingItems();
+    if (cloudResult.error) {
+      console.warn(CLOUD_SYNC_WARNING, { code: cloudResult.error.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+    logCloudSync('cloud fetch completed', { count: cloudResult.items.length });
+
+    if (cloudResult.items.length === 0 && localItems.length > 0 && !params?.skipInitialMigration) {
+      logCloudSync('migration check', { attempted: true, localCount: localItems.length });
+      const migrationResult = await upsertShoppingItemsBatch(localItems);
+      if (!migrationResult.success) {
+        console.warn(CLOUD_SYNC_WARNING, { code: migrationResult.error?.message });
+        setCloudSyncWarning(CLOUD_SYNC_WARNING);
+        return;
+      }
+      logCloudSync('migration success', { uploaded: localItems.length });
+      const reloaded = await fetchShoppingItems();
+      if (!reloaded.error) {
+        setShoppingItems(reloaded.items);
+        logCloudSync('post-migration reload', { count: reloaded.items.length });
+      }
+      return;
+    }
+    logCloudSync('migration check', { attempted: false });
+
+    setShoppingItems(cloudResult.items);
+  };
+
+  const pushShoppingItemToCloud = async (itemId: string) => {
+    const userId = sharedUserId || (await refreshSharedUser());
+    if (!userId) {
+      return;
+    }
+    const item = useTripStore.getState().shoppingItems.find((current) => current.id === itemId);
+    if (!item) {
+      return;
+    }
+
+    logCloudSync('upsert item start', { itemId });
+    const result = await upsertShoppingItem(item);
+    if (!result.success) {
+      console.warn(CLOUD_SYNC_WARNING, { itemId, code: result.error?.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+
+    setCloudSyncWarning('');
+    logCloudSync('upsert item success', { itemId });
+  };
+
+  const removeShoppingItemFromCloud = async (itemId: string) => {
+    const userId = sharedUserId || (await refreshSharedUser());
+    if (!userId) {
+      return;
+    }
+    const result = await deleteShoppingItemFromSupabase(itemId);
+    if (!result.success) {
+      console.warn(CLOUD_SYNC_WARNING, { itemId, code: result.error?.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+
+    setCloudSyncWarning('');
+    logCloudSync('delete item success', { itemId });
+  };
+
+  useEffect(() => {
+    void pullShoppingItemsFromCloud();
+  }, []);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) {
+      return;
+    }
+
+    const {
+      data: { subscription }
+    } = client.auth.onAuthStateChange(() => {
+      void pullShoppingItemsFromCloud();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const reloadOnFocus = () => {
+      void pullShoppingItemsFromCloud({ skipInitialMigration: true });
+    };
+
+    window.addEventListener('focus', reloadOnFocus);
+    document.addEventListener('visibilitychange', reloadOnFocus);
+
+    return () => {
+      window.removeEventListener('focus', reloadOnFocus);
+      document.removeEventListener('visibilitychange', reloadOnFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sharedUserId) {
+      return;
+    }
+
+    let unsubscribe: (() => void) | null = null;
+    void subscribeToShoppingItemsChanges(() => {
+      void pullShoppingItemsFromCloud({ skipInitialMigration: true });
+    }).then((result) => {
+      if (!result.error) {
+        unsubscribe = result.unsubscribe;
+      }
+    });
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [sharedUserId]);
 
   useEffect(() => {
     const now = Date.now();
@@ -255,8 +418,13 @@ export function ShoppingScreen() {
 
     if (editingItem) {
       updateShoppingItem(editingItem.id, payload);
+      void pushShoppingItemToCloud(editingItem.id);
     } else {
       addShoppingItem(payload);
+      const created = useTripStore.getState().shoppingItems.at(-1);
+      if (created?.id) {
+        void pushShoppingItemToCloud(created.id);
+      }
     }
 
     closeSheet();
@@ -336,6 +504,7 @@ export function ShoppingScreen() {
 
       setShoppingItemPhoto(editingItem.id, nextPhoto);
       setEditingItem((prev) => (prev ? { ...prev, photo: nextPhoto } : prev));
+      void pushShoppingItemToCloud(editingItem.id);
 
       if (previousPath) {
         const cleanupResult = await deleteSupabaseStorageImage(previousPath);
@@ -356,6 +525,7 @@ export function ShoppingScreen() {
           : reason;
       console.warn('[shopping-photo] upload failed', { reason, error });
       setUploadError(mapUploadErrorMessage({ code: errorCode }));
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -377,6 +547,7 @@ export function ShoppingScreen() {
 
     setShoppingItemPhoto(editingItem.id, undefined);
     setEditingItem((prev) => (prev ? { ...prev, photo: undefined } : prev));
+    void pushShoppingItemToCloud(editingItem.id);
     setSignedPhotoCache((prev) => {
       const next = { ...prev };
       delete next[targetPath];
@@ -387,7 +558,13 @@ export function ShoppingScreen() {
   const handleConfirmDelete = () => {
     if (!deletingItem) return;
     void removeShoppingItem(deletingItem.id);
+    void removeShoppingItemFromCloud(deletingItem.id);
     setDeletingItem(null);
+  };
+
+  const handleToggle = (itemId: string) => {
+    toggleShoppingItem(itemId);
+    void pushShoppingItemToCloud(itemId);
   };
 
   const getPhotoDisplayUrl = (item: ShoppingItem) => {
@@ -429,6 +606,7 @@ export function ShoppingScreen() {
               <Plus className="mr-1 h-4 w-4" /> 新增
             </Button>
           </div>
+          {cloudSyncWarning ? <p className="mt-2 text-xs text-[var(--accent-strong)]">{cloudSyncWarning}</p> : null}
         </section>
 
         <section className="space-y-3">
@@ -447,7 +625,7 @@ export function ShoppingScreen() {
                     item={item}
                     mapHref={buildShoppingMapHref(item)}
                     photoUrl={getPhotoDisplayUrl(item)}
-                    onToggle={() => toggleShoppingItem(item.id)}
+                    onToggle={() => handleToggle(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
                   />
@@ -471,7 +649,7 @@ export function ShoppingScreen() {
                     item={item}
                     mapHref={buildShoppingMapHref(item)}
                     photoUrl={getPhotoDisplayUrl(item)}
-                    onToggle={() => toggleShoppingItem(item.id)}
+                    onToggle={() => handleToggle(item.id)}
                     onEdit={() => openEditSheet(item)}
                     onDelete={() => setDeletingItem(item)}
                   />

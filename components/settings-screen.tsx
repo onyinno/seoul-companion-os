@@ -1,9 +1,17 @@
 'use client';
 
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Moon, Palette, SlidersHorizontal, Type } from 'lucide-react';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
 import type { FontSizeLevel, ThemeColor, VisualPreference } from '@/lib/types';
+import {
+  getSupabaseSession,
+  getSupabaseUser,
+  signInWithEmailPassword,
+  signOutSupabaseUser
+} from '@/lib/supabase-auth';
+import { getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
 
 const themeOptions: { value: ThemeColor; label: string; description: string }[] = [
   { value: 'seoul', label: '首爾柔和', description: '預設色系，平衡而清爽。' },
@@ -25,6 +33,75 @@ const visualOptions: { value: VisualPreference; label: string; description: stri
 
 export function SettingsScreen() {
   const { settings, setThemeColor, setFontSizeLevel, setDarkMode, setVisualPreference, resetToSeed } = useTripStore();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authStatus, setAuthStatus] = useState<'unknown' | 'signed_in' | 'anonymous' | 'signed_out'>('unknown');
+  const [signedInEmail, setSignedInEmail] = useState('');
+
+  const missingEnv = useMemo(() => getSupabaseMissingEnvKeys(), []);
+
+  const refreshAuthState = async () => {
+    const session = await getSupabaseSession();
+    const user = await getSupabaseUser();
+
+    if (!session || !user) {
+      setAuthStatus('signed_out');
+      setSignedInEmail('');
+      return;
+    }
+
+    if (user.is_anonymous) {
+      setAuthStatus('anonymous');
+      setSignedInEmail('');
+      return;
+    }
+
+    setAuthStatus('signed_in');
+    setSignedInEmail(user.email ?? '');
+  };
+
+  useEffect(() => {
+    void refreshAuthState();
+  }, []);
+
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAuthError('');
+
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail || !password) {
+      setAuthError('請輸入 Email 與密碼。');
+      return;
+    }
+
+    setIsAuthLoading(true);
+    const result = await signInWithEmailPassword(normalizedEmail, password);
+    setIsAuthLoading(false);
+
+    if (!result.user) {
+      setAuthError('登入失敗，請確認帳號密碼。');
+      return;
+    }
+
+    setPassword('');
+    await refreshAuthState();
+  };
+
+  const handleLogout = async () => {
+    setAuthError('');
+    setIsAuthLoading(true);
+    const result = await signOutSupabaseUser();
+    setIsAuthLoading(false);
+
+    if (!result.success) {
+      setAuthError('登出失敗，請稍後再試。');
+      return;
+    }
+
+    await refreshAuthState();
+  };
 
   return (
     <div className="space-y-4">
@@ -118,6 +195,74 @@ export function SettingsScreen() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="surface-raised rounded-3xl p-4">
+        <h2 className="text-base font-semibold text-[var(--balance-bluegrey-deep)]">同步帳戶</h2>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          使用同一個帳戶登入，你和同行者可在不同裝置查看同一份旅行資料。
+        </p>
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          目前匿名模式僅限單一裝置，不適合跨裝置同步；若要共用資料，請使用同一組 Email 帳戶登入。
+        </p>
+        {missingEnv.length > 0 ? (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            尚未完成 Supabase 設定，請先補上：{missingEnv.join('、')}
+          </p>
+        ) : (
+          <>
+            <form onSubmit={handleLogin} className="mt-3 space-y-2">
+              <label className="block text-xs text-[var(--text-muted)]">
+                Email
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-main)]"
+                />
+              </label>
+              <label className="block text-xs text-[var(--text-muted)]">
+                Password
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  className="mt-1 w-full rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-main)]"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={isAuthLoading}
+                  className="rounded-xl border border-[var(--accent-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--accent-strong)] disabled:opacity-60"
+                >
+                  登入
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isAuthLoading}
+                  className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-[var(--text-main)] disabled:opacity-60"
+                >
+                  登出
+                </button>
+              </div>
+            </form>
+
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
+              {authStatus === 'signed_in' && signedInEmail
+                ? `目前已登入：${signedInEmail}`
+                : authStatus === 'anonymous'
+                  ? '目前為匿名模式（僅此裝置可用）。'
+                  : authStatus === 'signed_out'
+                    ? '目前尚未登入共享帳戶。'
+                    : '正在檢查登入狀態...'}
+            </p>
+            {authError ? <p className="mt-1 text-xs text-rose-600">{authError}</p> : null}
+          </>
+        )}
       </section>
 
       <section className="surface-raised rounded-3xl p-4">
