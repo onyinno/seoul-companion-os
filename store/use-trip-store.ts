@@ -365,7 +365,8 @@ export const useTripStore = create<TripState>()(
             console.warn('[shopping-photo] failed to cleanup storage object on item delete', {
               itemId,
               storagePath: target.photo.storagePath,
-              error: result.error
+              error: result.error?.message,
+              statusCode: result.error?.statusCode
             });
           }
         }

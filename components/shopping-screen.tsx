@@ -3,8 +3,15 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Pencil, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ensureAnonymousSupabaseUser } from '@/lib/supabase-auth';
-import { buildShoppingImagePath, createSupabaseSignedImageUrl, deleteSupabaseStorageImage, uploadImageToSupabaseStorage } from '@/lib/supabase-storage';
+import { ensureAnonymousSupabaseUserWithReason } from '@/lib/supabase-auth';
+import { getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
+import {
+  SUPABASE_TRIP_PHOTOS_BUCKET,
+  buildShoppingImagePath,
+  createSupabaseSignedImageUrl,
+  deleteSupabaseStorageImage,
+  uploadImageToSupabaseStorage
+} from '@/lib/supabase-storage';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn, googleMapsSearchUrl } from '@/lib/utils';
 import type { ShoppingAreaTag, ShoppingCategory, ShoppingItem } from '@/lib/types';
@@ -70,6 +77,32 @@ type SignedPhotoCache = {
   url: string;
   expiresAt: number;
 };
+
+const PHOTO_UPLOAD_MAX_BYTES = 1024 * 1024;
+
+function mapUploadErrorMessage(params: {
+  code?: string;
+  statusCode?: string;
+  missingEnv?: string[];
+}): string {
+  if (params.missingEnv && params.missingEnv.length > 0) {
+    return 'Supabase 未完成設定，請檢查環境變數';
+  }
+
+  if (params.code === 'anonymous_signin_failed' || params.code === 'anonymous_signin_exception' || params.code === 'anonymous_user_missing_id') {
+    return '未能建立匿名登入，請稍後再試';
+  }
+
+  if (params.code === 'unsupported_file_type' || params.code === 'file_too_large') {
+    return '相片格式或大小不支援';
+  }
+
+  if (params.code === 'storage_permission_denied' || params.statusCode === '403') {
+    return '相片上載權限被拒，請檢查 Storage policy';
+  }
+
+  return '相片上載失敗，請稍後再試';
+}
 
 function createJpegBlobFromImage(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -239,13 +272,40 @@ export function ShoppingScreen() {
     setIsUploadingPhoto(true);
 
     try {
-      const user = await ensureAnonymousSupabaseUser();
-      if (!user) {
-        throw new Error('supabase_user_unavailable');
+      const missingEnv = getSupabaseMissingEnvKeys();
+      if (missingEnv.length > 0) {
+        console.warn('[shopping-photo] supabase env missing', { missingEnv });
+        setUploadError(mapUploadErrorMessage({ missingEnv }));
+        return;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        setUploadError(mapUploadErrorMessage({ code: 'unsupported_file_type' }));
+        return;
+      }
+
+      if (file.size > PHOTO_UPLOAD_MAX_BYTES) {
+        setUploadError(mapUploadErrorMessage({ code: 'file_too_large' }));
+        return;
+      }
+
+      const { user, reason } = await ensureAnonymousSupabaseUserWithReason();
+      if (!user?.id) {
+        console.warn('[shopping-photo] anonymous signin failed', { reason });
+        setUploadError(mapUploadErrorMessage({ code: reason ?? 'anonymous_signin_failed' }));
+        return;
       }
 
       const fileId = crypto.randomUUID();
       const path = buildShoppingImagePath(user.id, editingItem.id, fileId);
+
+      console.info('[shopping-photo] uploading image', {
+        bucket: SUPABASE_TRIP_PHOTOS_BUCKET,
+        path,
+        fileType: file.type,
+        fileSize: file.size
+      });
+
       const jpegBlob = await createJpegBlobFromImage(file);
       const uploadResult = await uploadImageToSupabaseStorage({
         path,
@@ -254,7 +314,17 @@ export function ShoppingScreen() {
       });
 
       if (uploadResult.error || !uploadResult.path) {
-        throw new Error(uploadResult.error ?? 'upload_failed');
+        const statusCode = uploadResult.error?.statusCode;
+        const errorMessage = uploadResult.error?.message ?? 'upload_failed';
+        const mappedCode = statusCode === '403' ? 'storage_permission_denied' : errorMessage;
+
+        console.warn('[shopping-photo] upload failed', {
+          path,
+          statusCode,
+          errorMessage
+        });
+        setUploadError(mapUploadErrorMessage({ code: mappedCode, statusCode }));
+        return;
       }
 
       const previousPath = editingItem.photo?.storagePath;
@@ -273,13 +343,19 @@ export function ShoppingScreen() {
           console.warn('[shopping-photo] failed to delete old photo during replace', {
             itemId: editingItem.id,
             storagePath: previousPath,
-            error: cleanupResult.error
+            error: cleanupResult.error?.message,
+            statusCode: cleanupResult.error?.statusCode
           });
         }
       }
     } catch (error) {
-      console.warn('[shopping-photo] upload failed', error);
-      setUploadError('相片上載失敗，請稍後再試');
+      const reason = error instanceof Error ? error.message : 'upload_failed';
+      const errorCode =
+        reason === 'canvas_context_unavailable' || reason === 'image_conversion_failed' || reason === 'image_load_failed'
+          ? 'unsupported_file_type'
+          : reason;
+      console.warn('[shopping-photo] upload failed', { reason, error });
+      setUploadError(mapUploadErrorMessage({ code: errorCode }));
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -294,7 +370,8 @@ export function ShoppingScreen() {
       console.warn('[shopping-photo] failed to remove photo', {
         itemId: editingItem.id,
         storagePath: targetPath,
-        error: result.error
+        error: result.error?.message,
+        statusCode: result.error?.statusCode
       });
     }
 

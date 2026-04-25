@@ -21,24 +21,33 @@ export async function getSupabaseUser(): Promise<User | null> {
 }
 
 export async function ensureAnonymousSupabaseUser(): Promise<User | null> {
+  const result = await ensureAnonymousSupabaseUserWithReason();
+  return result.user;
+}
+
+export async function ensureAnonymousSupabaseUserWithReason(): Promise<{ user: User | null; reason: string | null }> {
   const client = getSupabaseClient();
   if (!client) {
-    return null;
+    return { user: null, reason: 'supabase_disabled' };
   }
 
   const existingUser = await getSupabaseUser();
   if (existingUser) {
-    return existingUser;
+    return { user: existingUser, reason: null };
   }
 
   try {
     const { data, error } = await client.auth.signInAnonymously();
     if (error) {
-      return null;
+      return { user: null, reason: error.message || 'anonymous_signin_failed' };
     }
 
-    return data.user ?? null;
+    if (!data.user?.id) {
+      return { user: null, reason: 'anonymous_user_missing_id' };
+    }
+
+    return { user: data.user, reason: null };
   } catch {
-    return null;
+    return { user: null, reason: 'anonymous_signin_exception' };
   }
 }
