@@ -32,6 +32,23 @@
 3. bucket 名稱必須使用：`trip-photos`。
 4. 設定為 **private**（非公開）。
 
+## 3-1) 套用 Storage policies（SQL Editor）
+
+在啟用任何照片上傳 UI 前，請先到 Supabase Dashboard → **SQL Editor**，手動執行：
+
+- `docs/supabase-storage-policies.sql`
+
+此 SQL 會在 `storage.objects` 建立 bucket `trip-photos` 的 RLS policies，限制為：
+
+- 僅 `authenticated` 使用者可存取
+- 第一層資料夾必須等於 `auth.uid()::text`
+- 路徑需符合：
+  - `{userId}/shopping/{itemId}/{fileId}.jpg`
+  - `{userId}/activities/{activityId}/{fileId}.jpg`
+- 使用者只能對自己的資料夾做 `insert/select/update/delete`
+
+> 注意：`trip-photos` 必須維持 **private**，不要改成 public。
+
 ## 4) 設定 Vercel Environment Variables
 
 在 Vercel 專案設定中加入：
