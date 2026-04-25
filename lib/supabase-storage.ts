@@ -3,7 +3,7 @@ import { getSupabaseClient } from '@/lib/supabase-client';
 export const SUPABASE_TRIP_PHOTOS_BUCKET = 'trip-photos';
 
 export function buildShoppingImagePath(userId: string, itemId: string, fileId: string): string {
-  return `${userId}/shopping/${itemId}/${fileId}`;
+  return `${userId}/shopping/${itemId}/${fileId}.jpg`;
 }
 
 export function buildActivityImagePath(userId: string, activityId: string, fileId: string): string {
