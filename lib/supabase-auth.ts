@@ -20,6 +20,15 @@ export async function getSupabaseUser(): Promise<User | null> {
   }
 }
 
+export async function getSupabaseCurrentUser(): Promise<User | null> {
+  const session = await getSupabaseSession();
+  if (session?.user) {
+    return session.user;
+  }
+
+  return getSupabaseUser();
+}
+
 export async function getSupabaseSession(): Promise<Session | null> {
   const client = getSupabaseClient();
   if (!client) {

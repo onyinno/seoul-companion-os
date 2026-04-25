@@ -103,6 +103,7 @@ cp .env.example .env.local
 ## 7) v2 方向（尚未在此 PR 實作）
 
 - Shopping 清單已可透過 Supabase Database 同步 metadata（目前僅 shopping 範圍）。
+- Shopping 頁面會在登入後、頁面載入、以及回到頁面焦點時重新抓取 `shopping_items`，並嘗試即時同步變更（Realtime）。
 - Shopping 照片檔案仍儲存在 Supabase Storage `trip-photos`，前端以 signed URL 暫時讀取。
 - signed URL 為短時效連結，不是永久公開網址。
 - Activity / itinerary / 其他模組的完整同步尚未導入。

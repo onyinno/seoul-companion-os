@@ -3,8 +3,8 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { ExternalLink, Pencil, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ensureAnonymousSupabaseUserWithReason, getSupabaseUser } from '@/lib/supabase-auth';
-import { getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
+import { ensureAnonymousSupabaseUserWithReason, getSupabaseCurrentUser } from '@/lib/supabase-auth';
+import { getSupabaseClient, getSupabaseMissingEnvKeys } from '@/lib/supabase-client';
 import {
   deleteShoppingItem as deleteShoppingItemFromSupabase,
   fetchShoppingItems,
@@ -86,6 +86,21 @@ type SignedPhotoCache = {
 };
 
 const PHOTO_UPLOAD_MAX_BYTES = 1024 * 1024;
+const CLOUD_SYNC_WARNING = '雲端同步失敗，本機資料已保留';
+const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
+
+function logCloudSync(message: string, payload?: Record<string, unknown>) {
+  if (!IS_DEV_OR_PREVIEW) {
+    return;
+  }
+
+  if (payload) {
+    console.info(`[shopping-sync] ${message}`, payload);
+    return;
+  }
+
+  console.info(`[shopping-sync] ${message}`);
+}
 
 function mapUploadErrorMessage(params: {
   code?: string;
@@ -163,6 +178,7 @@ export function ShoppingScreen() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [sharedUserId, setSharedUserId] = useState('');
+  const [cloudSyncWarning, setCloudSyncWarning] = useState('');
 
   const pendingItems = useMemo(() => shoppingItems.filter((item) => !item.completed), [shoppingItems]);
   const completedItems = useMemo(() => shoppingItems.filter((item) => item.completed), [shoppingItems]);
@@ -170,9 +186,10 @@ export function ShoppingScreen() {
   const totalCount = shoppingItems.length;
 
   const refreshSharedUser = async (): Promise<string> => {
-    const user = await getSupabaseUser();
+    const user = await getSupabaseCurrentUser();
     const nextUserId = user?.id && !user.is_anonymous ? user.id : '';
     setSharedUserId(nextUserId);
+    logCloudSync('shared user resolved', { hasSharedUser: Boolean(nextUserId), userId: nextUserId || null });
     return nextUserId;
   };
 
@@ -182,19 +199,33 @@ export function ShoppingScreen() {
       return;
     }
 
+    setCloudSyncWarning('');
     const localItems = useTripStore.getState().shoppingItems;
     const cloudResult = await fetchShoppingItems();
     if (cloudResult.error) {
+      console.warn(CLOUD_SYNC_WARNING, { code: cloudResult.error.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
       return;
     }
+    logCloudSync('cloud fetch completed', { count: cloudResult.items.length });
 
     if (cloudResult.items.length === 0 && localItems.length > 0 && !params?.skipInitialMigration) {
+      logCloudSync('migration check', { attempted: true, localCount: localItems.length });
       const migrationResult = await upsertShoppingItemsBatch(localItems);
       if (!migrationResult.success) {
+        console.warn(CLOUD_SYNC_WARNING, { code: migrationResult.error?.message });
+        setCloudSyncWarning(CLOUD_SYNC_WARNING);
         return;
+      }
+      logCloudSync('migration success', { uploaded: localItems.length });
+      const reloaded = await fetchShoppingItems();
+      if (!reloaded.error) {
+        setShoppingItems(reloaded.items);
+        logCloudSync('post-migration reload', { count: reloaded.items.length });
       }
       return;
     }
+    logCloudSync('migration check', { attempted: false });
 
     setShoppingItems(cloudResult.items);
   };
@@ -208,7 +239,17 @@ export function ShoppingScreen() {
     if (!item) {
       return;
     }
-    await upsertShoppingItem(item);
+
+    logCloudSync('upsert item start', { itemId });
+    const result = await upsertShoppingItem(item);
+    if (!result.success) {
+      console.warn(CLOUD_SYNC_WARNING, { itemId, code: result.error?.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+
+    setCloudSyncWarning('');
+    logCloudSync('upsert item success', { itemId });
   };
 
   const removeShoppingItemFromCloud = async (itemId: string) => {
@@ -216,11 +257,36 @@ export function ShoppingScreen() {
     if (!userId) {
       return;
     }
-    await deleteShoppingItemFromSupabase(itemId);
+    const result = await deleteShoppingItemFromSupabase(itemId);
+    if (!result.success) {
+      console.warn(CLOUD_SYNC_WARNING, { itemId, code: result.error?.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+
+    setCloudSyncWarning('');
+    logCloudSync('delete item success', { itemId });
   };
 
   useEffect(() => {
     void pullShoppingItemsFromCloud();
+  }, []);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) {
+      return;
+    }
+
+    const {
+      data: { subscription }
+    } = client.auth.onAuthStateChange(() => {
+      void pullShoppingItemsFromCloud();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -459,6 +525,7 @@ export function ShoppingScreen() {
           : reason;
       console.warn('[shopping-photo] upload failed', { reason, error });
       setUploadError(mapUploadErrorMessage({ code: errorCode }));
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -539,6 +606,7 @@ export function ShoppingScreen() {
               <Plus className="mr-1 h-4 w-4" /> 新增
             </Button>
           </div>
+          {cloudSyncWarning ? <p className="mt-2 text-xs text-[var(--accent-strong)]">{cloudSyncWarning}</p> : null}
         </section>
 
         <section className="space-y-3">

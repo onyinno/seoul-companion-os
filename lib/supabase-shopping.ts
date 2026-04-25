@@ -1,6 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-import { getSupabaseUser } from '@/lib/supabase-auth';
+import { getSupabaseCurrentUser } from '@/lib/supabase-auth';
 import { getSupabaseClient } from '@/lib/supabase-client';
 import type { ShoppingItem } from '@/lib/types';
 
@@ -72,7 +72,7 @@ function mapShoppingItemToRow(item: ShoppingItem, userId: string): Omit<Shopping
 }
 
 async function getSharedUserId(): Promise<string | null> {
-  const user = await getSupabaseUser();
+  const user = await getSupabaseCurrentUser();
   if (!user?.id || user.is_anonymous) {
     return null;
   }
