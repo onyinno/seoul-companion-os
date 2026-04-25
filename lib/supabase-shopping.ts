@@ -12,6 +12,7 @@ type ShoppingItemRow = {
   name: string;
   category: string | null;
   location: string | null;
+  store_name: string | null;
   address: string | null;
   google_maps_url: string | null;
   note: string | null;
@@ -35,6 +36,7 @@ function mapRowToShoppingItem(row: ShoppingItemRow): ShoppingItem {
     title: row.name,
     category: (row.category as ShoppingItem['category']) || '生活雜貨',
     area: row.location ?? '',
+    storeName: row.store_name ?? '',
     address: row.address ?? '',
     googleMapsUrl: row.google_maps_url ?? '',
     note: row.note ?? '',
@@ -58,6 +60,7 @@ function mapShoppingItemToRow(item: ShoppingItem, userId: string): Omit<Shopping
     name: item.title,
     category: item.category ?? null,
     location: item.area || item.areaTag || null,
+    store_name: item.storeName || null,
     address: item.address || null,
     google_maps_url: item.googleMapsUrl || null,
     note: item.note || null,

@@ -7,6 +7,7 @@ create table if not exists public.shopping_items (
   name text not null,
   category text,
   location text,
+  store_name text,
   address text,
   google_maps_url text,
   note text,

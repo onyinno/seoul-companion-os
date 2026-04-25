@@ -68,7 +68,7 @@
 
 - `docs/supabase-shopping-items.sql`
 
-此 table 用於同步購物清單的 metadata（名稱、價格、地圖連結、是否完成、相片 storage path 等）。
+此 table 用於同步購物清單的 metadata（名稱、商店名稱、地區、價格、地圖連結、是否完成、相片 storage path 等）。
 在目前設計中：
 
 - `shared account` 登入後，兩台裝置會拿到同一個 `auth.uid()`（也就是同一個 `user_id`）
