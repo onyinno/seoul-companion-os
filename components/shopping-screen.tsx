@@ -13,12 +13,12 @@ import {
   upsertShoppingItemsBatch
 } from '@/lib/supabase-shopping';
 import {
-  SUPABASE_TRIP_PHOTOS_BUCKET,
   buildShoppingImagePath,
   createSupabaseSignedImageUrl,
   deleteSupabaseStorageImage,
   uploadImageToSupabaseStorage
 } from '@/lib/supabase-storage';
+import { createJpegBlobFromImage, mapImageUploadErrorMessage, validateImageFileForUpload } from '@/lib/image-upload';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn, googleMapsSearchUrl } from '@/lib/utils';
 import type { ShoppingAreaTag, ShoppingCategory, ShoppingItem } from '@/lib/types';
@@ -85,7 +85,6 @@ type SignedPhotoCache = {
   expiresAt: number;
 };
 
-const PHOTO_UPLOAD_MAX_BYTES = 1024 * 1024;
 const CLOUD_SYNC_WARNING = '雲端同步失敗，本機資料已保留';
 const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
 
@@ -115,57 +114,16 @@ function mapUploadErrorMessage(params: {
     return '未能建立匿名登入，請稍後再試';
   }
 
-  if (params.code === 'unsupported_file_type' || params.code === 'file_too_large') {
-    return '相片格式或大小不支援';
-  }
-
   if (params.code === 'storage_permission_denied' || params.statusCode === '403') {
     return '相片上載權限被拒，請檢查 Storage policy';
   }
 
-  return '相片上載失敗，請稍後再試';
+  return mapImageUploadErrorMessage(params.code);
 }
 
-function createJpegBlobFromImage(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    image.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
-      const context = canvas.getContext('2d');
-
-      if (!context) {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('canvas_context_unavailable'));
-        return;
-      }
-
-      context.drawImage(image, 0, 0);
-      canvas.toBlob(
-        (blob) => {
-          URL.revokeObjectURL(objectUrl);
-          if (!blob) {
-            reject(new Error('image_conversion_failed'));
-            return;
-          }
-          resolve(blob);
-        },
-        'image/jpeg',
-        0.9
-      );
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('image_load_failed'));
-    };
-
-    image.src = objectUrl;
-  });
-}
+type DraftShoppingPhotoChange =
+  | { operation: 'add' | 'replace'; fileName: string; blob: Blob; previewUrl: string }
+  | { operation: 'remove' };
 
 export function ShoppingScreen() {
   const { shoppingItems, toggleShoppingItem, addShoppingItem, updateShoppingItem, setShoppingItemPhoto, removeShoppingItem, setShoppingItems } =
@@ -179,6 +137,7 @@ export function ShoppingScreen() {
   const [uploadError, setUploadError] = useState('');
   const [sharedUserId, setSharedUserId] = useState('');
   const [cloudSyncWarning, setCloudSyncWarning] = useState('');
+  const [draftPhotoChange, setDraftPhotoChange] = useState<DraftShoppingPhotoChange | null>(null);
 
   const pendingItems = useMemo(() => shoppingItems.filter((item) => !item.completed), [shoppingItems]);
   const completedItems = useMemo(() => shoppingItems.filter((item) => item.completed), [shoppingItems]);
@@ -374,6 +333,7 @@ export function ShoppingScreen() {
     setEditingItem(null);
     resetForm();
     setUploadError('');
+    setDraftPhotoChange(null);
     setIsSheetOpen(true);
   };
 
@@ -391,16 +351,21 @@ export function ShoppingScreen() {
       estimatedCost: String(item.estimatedCost),
       actualCost: String(item.actualCost)
     });
+    setDraftPhotoChange(null);
     setIsSheetOpen(true);
   };
 
   const closeSheet = () => {
+    if (draftPhotoChange?.operation !== 'remove' && draftPhotoChange?.previewUrl) {
+      URL.revokeObjectURL(draftPhotoChange.previewUrl);
+    }
     setIsSheetOpen(false);
     setEditingItem(null);
     setUploadError('');
+    setDraftPhotoChange(null);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const payload = {
@@ -418,12 +383,66 @@ export function ShoppingScreen() {
 
     if (editingItem) {
       updateShoppingItem(editingItem.id, payload);
-      void pushShoppingItemToCloud(editingItem.id);
+      await pushShoppingItemToCloud(editingItem.id);
+      const draftSnapshot = draftPhotoChange;
+      setDraftPhotoChange(null);
+
+      if (draftSnapshot) {
+        if (draftSnapshot.operation === 'remove') {
+          const originalPath = editingItem.photo?.storagePath;
+          setShoppingItemPhoto(editingItem.id, undefined);
+          await pushShoppingItemToCloud(editingItem.id);
+          if (originalPath) {
+            const result = await deleteSupabaseStorageImage(originalPath);
+            if (!result.success) {
+              console.warn('[shopping-photo] failed to cleanup removed photo on save', {
+                itemId: editingItem.id,
+                storagePath: originalPath,
+                error: result.error?.message,
+                statusCode: result.error?.statusCode
+              });
+            }
+          }
+        } else {
+          const { user, reason } = await ensureAnonymousSupabaseUserWithReason();
+          if (!user?.id) {
+            setUploadError(mapUploadErrorMessage({ code: reason ?? 'anonymous_signin_failed' }));
+            return;
+          }
+
+          const path = buildShoppingImagePath(user.id, editingItem.id, crypto.randomUUID());
+          const uploadResult = await uploadImageToSupabaseStorage({
+            path,
+            file: draftSnapshot.blob,
+            contentType: 'image/jpeg'
+          });
+
+          if (uploadResult.error || !uploadResult.path) {
+            setUploadError(
+              mapUploadErrorMessage({ code: uploadResult.error?.message, statusCode: uploadResult.error?.statusCode })
+            );
+            return;
+          }
+
+          const previousPath = editingItem.photo?.storagePath;
+          const nextPhoto = {
+            storagePath: uploadResult.path,
+            fileName: draftSnapshot.fileName,
+            updatedAt: new Date().toISOString()
+          };
+          setShoppingItemPhoto(editingItem.id, nextPhoto);
+          await pushShoppingItemToCloud(editingItem.id);
+
+          if (previousPath) {
+            void deleteSupabaseStorageImage(previousPath);
+          }
+        }
+      }
     } else {
       addShoppingItem(payload);
       const created = useTripStore.getState().shoppingItems.at(-1);
       if (created?.id) {
-        void pushShoppingItemToCloud(created.id);
+        await pushShoppingItemToCloud(created.id);
       }
     }
 
@@ -447,13 +466,9 @@ export function ShoppingScreen() {
         return;
       }
 
-      if (!file.type.startsWith('image/')) {
-        setUploadError(mapUploadErrorMessage({ code: 'unsupported_file_type' }));
-        return;
-      }
-
-      if (file.size > PHOTO_UPLOAD_MAX_BYTES) {
-        setUploadError(mapUploadErrorMessage({ code: 'file_too_large' }));
+      const validationCode = validateImageFileForUpload(file);
+      if (validationCode) {
+        setUploadError(mapUploadErrorMessage({ code: validationCode }));
         return;
       }
 
@@ -464,95 +479,47 @@ export function ShoppingScreen() {
         return;
       }
 
-      const fileId = crypto.randomUUID();
-      const path = buildShoppingImagePath(user.id, editingItem.id, fileId);
-
-      console.info('[shopping-photo] uploading image', {
-        bucket: SUPABASE_TRIP_PHOTOS_BUCKET,
-        path,
+      console.info('[shopping-photo] preparing draft image', {
+        operation: editingItem.photo?.storagePath ? 'replace' : 'add',
+        draftOnly: true,
+        itemId: editingItem.id,
         fileType: file.type,
         fileSize: file.size
       });
 
       const jpegBlob = await createJpegBlobFromImage(file);
-      const uploadResult = await uploadImageToSupabaseStorage({
-        path,
-        file: jpegBlob,
-        contentType: 'image/jpeg'
+      if (draftPhotoChange?.operation !== 'remove' && draftPhotoChange?.previewUrl) {
+        URL.revokeObjectURL(draftPhotoChange.previewUrl);
+      }
+      const previewUrl = URL.createObjectURL(jpegBlob);
+      console.info('[shopping-photo] draft image processed', {
+        itemId: editingItem.id,
+        processedType: jpegBlob.type,
+        processedSize: jpegBlob.size,
+        draftOnly: true
       });
-
-      if (uploadResult.error || !uploadResult.path) {
-        const statusCode = uploadResult.error?.statusCode;
-        const errorMessage = uploadResult.error?.message ?? 'upload_failed';
-        const mappedCode = statusCode === '403' ? 'storage_permission_denied' : errorMessage;
-
-        console.warn('[shopping-photo] upload failed', {
-          path,
-          statusCode,
-          errorMessage
-        });
-        setUploadError(mapUploadErrorMessage({ code: mappedCode, statusCode }));
-        return;
-      }
-
-      const previousPath = editingItem.photo?.storagePath;
-      const nextPhoto = {
-        storagePath: uploadResult.path,
+      setDraftPhotoChange({
+        operation: editingItem.photo?.storagePath ? 'replace' : 'add',
         fileName: file.name,
-        updatedAt: new Date().toISOString()
-      };
-
-      setShoppingItemPhoto(editingItem.id, nextPhoto);
-      setEditingItem((prev) => (prev ? { ...prev, photo: nextPhoto } : prev));
-      void pushShoppingItemToCloud(editingItem.id);
-
-      if (previousPath) {
-        const cleanupResult = await deleteSupabaseStorageImage(previousPath);
-        if (!cleanupResult.success) {
-          console.warn('[shopping-photo] failed to delete old photo during replace', {
-            itemId: editingItem.id,
-            storagePath: previousPath,
-            error: cleanupResult.error?.message,
-            statusCode: cleanupResult.error?.statusCode
-          });
-        }
-      }
+        blob: jpegBlob,
+        previewUrl
+      });
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'upload_failed';
-      const errorCode =
-        reason === 'canvas_context_unavailable' || reason === 'image_conversion_failed' || reason === 'image_load_failed'
-          ? 'unsupported_file_type'
-          : reason;
       console.warn('[shopping-photo] upload failed', { reason, error });
-      setUploadError(mapUploadErrorMessage({ code: errorCode }));
+      setUploadError(mapUploadErrorMessage({ code: reason }));
       setCloudSyncWarning(CLOUD_SYNC_WARNING);
     } finally {
       setIsUploadingPhoto(false);
     }
   };
 
-  const handleRemovePhoto = async () => {
-    if (!editingItem?.photo?.storagePath) return;
-
-    const targetPath = editingItem.photo.storagePath;
-    const result = await deleteSupabaseStorageImage(targetPath);
-    if (!result.success) {
-      console.warn('[shopping-photo] failed to remove photo', {
-        itemId: editingItem.id,
-        storagePath: targetPath,
-        error: result.error?.message,
-        statusCode: result.error?.statusCode
-      });
+  const handleRemovePhoto = () => {
+    if (!editingItem) return;
+    if (draftPhotoChange?.operation !== 'remove' && draftPhotoChange?.previewUrl) {
+      URL.revokeObjectURL(draftPhotoChange.previewUrl);
     }
-
-    setShoppingItemPhoto(editingItem.id, undefined);
-    setEditingItem((prev) => (prev ? { ...prev, photo: undefined } : prev));
-    void pushShoppingItemToCloud(editingItem.id);
-    setSignedPhotoCache((prev) => {
-      const next = { ...prev };
-      delete next[targetPath];
-      return next;
-    });
+    setDraftPhotoChange({ operation: 'remove' });
   };
 
   const handleConfirmDelete = () => {
@@ -571,6 +538,16 @@ export function ShoppingScreen() {
     const path = item.photo?.storagePath;
     if (!path) return '';
     return signedPhotoCache[path]?.url ?? '';
+  };
+
+  const getEditingPhotoUrl = () => {
+    if (draftPhotoChange?.operation === 'remove') {
+      return '';
+    }
+    if (draftPhotoChange?.operation === 'add' || draftPhotoChange?.operation === 'replace') {
+      return draftPhotoChange.previewUrl;
+    }
+    return editingItem ? getPhotoDisplayUrl(editingItem) : '';
   };
 
   return (
@@ -752,9 +729,10 @@ export function ShoppingScreen() {
               {editingItem && (
                 <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-3">
                   <p className="text-xs font-medium text-[var(--text-secondary)]">商品相片</p>
-                  {editingItem.photo?.storagePath && getPhotoDisplayUrl(editingItem) ? (
+                  {(draftPhotoChange?.operation === 'add' || draftPhotoChange?.operation === 'replace' || editingItem.photo?.storagePath) &&
+                  getEditingPhotoUrl() ? (
                     <img
-                      src={getPhotoDisplayUrl(editingItem)}
+                      src={getEditingPhotoUrl()}
                       alt={`${editingItem.title} 商品相片`}
                       className="mt-2 h-24 w-24 rounded-lg object-cover"
                     />
@@ -763,10 +741,15 @@ export function ShoppingScreen() {
                   )}
                   <div className="mt-2 flex flex-wrap gap-2">
                     <label className="inline-flex cursor-pointer items-center rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--balance-bluegrey-deep)]">
-                      {editingItem.photo?.storagePath ? '更換相片' : '新增相片'}
+                      {draftPhotoChange?.operation === 'remove'
+                        ? '新增相片'
+                        : draftPhotoChange?.operation === 'add' || draftPhotoChange?.operation === 'replace' || editingItem.photo?.storagePath
+                          ? '更換相片'
+                          : '新增相片'}
                       <input type="file" accept="image/*" className="hidden" onChange={handleUploadPhoto} disabled={isUploadingPhoto} />
                     </label>
-                    {editingItem.photo?.storagePath && (
+                    {(draftPhotoChange?.operation === 'add' || draftPhotoChange?.operation === 'replace' || editingItem.photo?.storagePath) &&
+                      draftPhotoChange?.operation !== 'remove' && (
                       <Button
                         type="button"
                         onClick={handleRemovePhoto}

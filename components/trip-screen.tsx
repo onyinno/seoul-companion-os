@@ -12,7 +12,6 @@ import {
   upsertItineraryActivity
 } from '@/lib/supabase-itinerary';
 import {
-  SUPABASE_TRIP_PHOTOS_BUCKET,
   buildActivityImagePath,
   createSupabaseSignedImageUrl,
   removeActivityImage,
@@ -23,6 +22,7 @@ import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddActivitySheet } from '@/components/add-activity-sheet';
+import { createJpegBlobFromImage, mapImageUploadErrorMessage, validateImageFileForUpload } from '@/lib/image-upload';
 import type { Activity, ActivityCategory } from '@/lib/types';
 
 const categoryLabel: Record<ActivityCategory, string> = {
@@ -75,20 +75,19 @@ const presetCovers = [
 const defaultCoverId = presetCovers[0].id;
 const coverValueFromPreset = (id: string) => `preset:${id}`;
 const CLOUD_SYNC_WARNING = '行程雲端同步失敗，本機資料已保留';
-const PHOTO_UPLOAD_WARNING = '行程相片上載失敗，請稍後再試';
-const PHOTO_METADATA_WARNING = '行程相片雲端同步失敗，請稍後再試';
 const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
 const SIGNED_URL_TTL_SECONDS = 60 * 30;
-const PHOTO_UPLOAD_MAX_INPUT_BYTES = 15 * 1024 * 1024;
-const PHOTO_UPLOAD_TARGET_BYTES = 1.5 * 1024 * 1024;
-const PHOTO_MAX_DIMENSION = 2560;
-const SUPPORTED_ACTIVITY_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const UNSUPPORTED_HEIC_TYPES = new Set(['image/heic', 'image/heif']);
+const PHOTO_UPLOAD_WARNING = '相片上載失敗，請稍後再試';
+const PHOTO_METADATA_WARNING = '相片雲端同步失敗，請稍後再試';
 
 type SignedPhotoCache = {
   url: string;
   expiresAt: number;
 };
+
+type DraftActivityPhotoChange =
+  | { operation: 'add' | 'replace'; fileName: string; blob: Blob; previewUrl: string }
+  | { operation: 'remove' };
 
 function logCloudSync(message: string, payload?: Record<string, unknown>) {
   if (!IS_DEV_OR_PREVIEW) {
@@ -103,80 +102,14 @@ function logCloudSync(message: string, payload?: Record<string, unknown>) {
   console.info(`[itinerary-sync] ${message}`);
 }
 
-function createJpegBlobFromImage(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
-
-    image.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = image.naturalWidth;
-      let height = image.naturalHeight;
-      const largerSide = Math.max(width, height);
-      if (largerSide > PHOTO_MAX_DIMENSION) {
-        const scale = PHOTO_MAX_DIMENSION / largerSide;
-        width = Math.max(1, Math.round(width * scale));
-        height = Math.max(1, Math.round(height * scale));
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext('2d');
-
-      if (!context) {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('canvas_context_unavailable'));
-        return;
-      }
-
-      context.drawImage(image, 0, 0, width, height);
-      const qualitySteps = [0.9, 0.82, 0.75, 0.68, 0.6];
-      const tryQuality = (index: number) => {
-        const quality = qualitySteps[index];
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              URL.revokeObjectURL(objectUrl);
-              reject(new Error('image_conversion_failed'));
-              return;
-            }
-
-            if (blob.size <= PHOTO_UPLOAD_TARGET_BYTES || index >= qualitySteps.length - 1) {
-              URL.revokeObjectURL(objectUrl);
-              resolve(blob);
-              return;
-            }
-            tryQuality(index + 1);
-          },
-          'image/jpeg',
-          quality
-        );
-      };
-      tryQuality(0);
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('image_load_failed'));
-    };
-
-    image.src = objectUrl;
-  });
-}
-
 function mapActivityUploadErrorMessage(params: { code?: string; statusCode?: string; missingEnv?: string[] }): string {
   if (params.missingEnv && params.missingEnv.length > 0) {
     return 'Supabase 未完成設定，請檢查環境變數';
   }
-  if (params.code === 'unsupported_file_type') {
-    return '相片格式不支援，請使用 JPG、PNG 或 WebP';
-  }
-  if (params.code === 'file_too_large' || params.code === 'image_conversion_failed' || params.code === 'image_load_failed') {
-    return '相片太大，請選擇較小的圖片';
-  }
   if (params.code === 'storage_permission_denied' || params.statusCode === '403') {
     return '相片上載權限被拒，請檢查 Storage policy';
   }
-  return PHOTO_UPLOAD_WARNING;
+  return mapImageUploadErrorMessage(params.code);
 }
 
 const resolveCoverPreview = (coverImage: string) => {
@@ -213,6 +146,7 @@ export function TripScreen() {
   const [signedPhotoCache, setSignedPhotoCache] = useState<Record<string, SignedPhotoCache>>({});
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoWarning, setPhotoWarning] = useState('');
+  const [draftPhotoChange, setDraftPhotoChange] = useState<DraftActivityPhotoChange | null>(null);
 
   const {
     trip,
@@ -284,9 +218,13 @@ export function TripScreen() {
   }, [trip]);
 
   const handleCloseSheet = () => {
+    if (draftPhotoChange?.operation !== 'remove' && draftPhotoChange?.previewUrl) {
+      URL.revokeObjectURL(draftPhotoChange.previewUrl);
+    }
     setIsSheetOpen(false);
     setEditingActivity(null);
     setPhotoWarning('');
+    setDraftPhotoChange(null);
   };
 
   const refreshSharedUser = async (): Promise<string> => {
@@ -429,10 +367,71 @@ export function TripScreen() {
     cost: number;
   }) => {
     if (!editingActivity) return;
+    const editingSnapshot = editingActivity;
+    const draftSnapshot = draftPhotoChange;
     const originalDayId = editingActivity.dayId;
     updateActivity(editingActivity.id, input);
     void pushActivityToCloud(editingActivity.id);
     void syncDayOrderToCloud([originalDayId, input.dayId]);
+    setDraftPhotoChange(null);
+
+    void (async () => {
+      if (!draftSnapshot) return;
+      if (draftSnapshot.operation === 'remove') {
+        if (!editingSnapshot.photo?.storagePath) return;
+        const metadataResult = await updateItineraryActivityPhotoMetadata({
+          activityId: editingSnapshot.id,
+          photoStoragePath: null,
+          photoFileName: null,
+          photoUploadedAt: null
+        });
+        if (!metadataResult.success) {
+          setPhotoWarning(PHOTO_METADATA_WARNING);
+          return;
+        }
+        setActivityPhoto(editingSnapshot.id, undefined);
+        const removeResult = await removeActivityImage(editingSnapshot.photo.storagePath);
+        if (!removeResult.success) {
+          logCloudSync('activity photo remove cleanup failed', { activityId: editingSnapshot.id, storagePath: editingSnapshot.photo.storagePath });
+        }
+        return;
+      }
+
+      const user = await getSupabaseCurrentUser();
+      if (!user?.id) {
+        setPhotoWarning(PHOTO_UPLOAD_WARNING);
+        return;
+      }
+      const path = buildActivityImagePath(user.id, editingSnapshot.id, crypto.randomUUID());
+      const uploadResult = await uploadImageToSupabaseStorage({
+        path,
+        file: draftSnapshot.blob,
+        contentType: 'image/jpeg'
+      });
+      if (uploadResult.error || !uploadResult.path) {
+        setPhotoWarning(mapActivityUploadErrorMessage({ code: uploadResult.error?.message, statusCode: uploadResult.error?.statusCode }));
+        return;
+      }
+      const nextPhoto = {
+        storagePath: uploadResult.path,
+        fileName: draftSnapshot.fileName,
+        uploadedAt: new Date().toISOString()
+      };
+      const metadataResult = await updateItineraryActivityPhotoMetadata({
+        activityId: editingSnapshot.id,
+        photoStoragePath: nextPhoto.storagePath,
+        photoFileName: nextPhoto.fileName,
+        photoUploadedAt: nextPhoto.uploadedAt
+      });
+      if (!metadataResult.success) {
+        setPhotoWarning(PHOTO_METADATA_WARNING);
+        return;
+      }
+      setActivityPhoto(editingSnapshot.id, nextPhoto);
+      if (editingSnapshot.photo?.storagePath) {
+        void removeActivityImage(editingSnapshot.photo.storagePath);
+      }
+    })();
   };
 
   const handleConfirmDelete = () => {
@@ -517,16 +516,9 @@ export function TripScreen() {
         setPhotoWarning(mapActivityUploadErrorMessage({ missingEnv }));
         return;
       }
-      if (UNSUPPORTED_HEIC_TYPES.has(file.type)) {
-        setPhotoWarning(mapActivityUploadErrorMessage({ code: 'unsupported_file_type' }));
-        return;
-      }
-      if (!SUPPORTED_ACTIVITY_IMAGE_TYPES.has(file.type)) {
-        setPhotoWarning(mapActivityUploadErrorMessage({ code: 'unsupported_file_type' }));
-        return;
-      }
-      if (file.size > PHOTO_UPLOAD_MAX_INPUT_BYTES) {
-        setPhotoWarning(mapActivityUploadErrorMessage({ code: 'file_too_large' }));
+      const validationCode = validateImageFileForUpload(file);
+      if (validationCode) {
+        setPhotoWarning(mapActivityUploadErrorMessage({ code: validationCode }));
         return;
       }
 
@@ -540,13 +532,9 @@ export function TripScreen() {
         return;
       }
 
-      const fileId = crypto.randomUUID();
-      const storagePath = buildActivityImagePath(user.id, editingActivity.id, fileId);
-      logCloudSync('activity photo upload started', {
+      logCloudSync('activity photo draft started', {
         activityId: editingActivity.id,
         hasSharedUserId: Boolean(sharedUserId || user.id),
-        bucket: SUPABASE_TRIP_PHOTOS_BUCKET,
-        storagePath,
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size
@@ -557,79 +545,16 @@ export function TripScreen() {
         processedType: jpegBlob.type,
         processedSize: jpegBlob.size
       });
-      const uploadResult = await uploadImageToSupabaseStorage({
-        path: storagePath,
-        file: jpegBlob,
-        contentType: 'image/jpeg'
-      });
-      if (uploadResult.error || !uploadResult.path) {
-        logCloudSync('activity photo upload failed', {
-          activityId: editingActivity.id,
-          bucket: SUPABASE_TRIP_PHOTOS_BUCKET,
-          storagePath,
-          errorMessage: uploadResult.error?.message ?? 'upload_failed',
-          statusCode: uploadResult.error?.statusCode
-        });
-        const mappedCode = uploadResult.error?.statusCode === '403' ? 'storage_permission_denied' : uploadResult.error?.message;
-        setPhotoWarning(mapActivityUploadErrorMessage({ code: mappedCode, statusCode: uploadResult.error?.statusCode }));
-        return;
+      if (draftPhotoChange?.operation !== 'remove') {
+        URL.revokeObjectURL(draftPhotoChange?.previewUrl ?? '');
       }
-
-      logCloudSync('activity photo upload storage path', { activityId: editingActivity.id, storagePath: uploadResult.path });
-      const oldPath = editingActivity.photo?.storagePath;
-      const nextPhoto = {
-        storagePath: uploadResult.path,
+      const previewUrl = URL.createObjectURL(jpegBlob);
+      setDraftPhotoChange({
+        operation: editingActivity.photo?.storagePath ? 'replace' : 'add',
         fileName: file.name,
-        uploadedAt: new Date().toISOString()
-      };
-
-      const metadataResult = await updateItineraryActivityPhotoMetadata({
-        activityId: editingActivity.id,
-        photoStoragePath: nextPhoto.storagePath,
-        photoFileName: nextPhoto.fileName,
-        photoUploadedAt: nextPhoto.uploadedAt
+        blob: jpegBlob,
+        previewUrl
       });
-
-      if (!metadataResult.success) {
-        setPhotoWarning(PHOTO_METADATA_WARNING);
-        logCloudSync('activity photo metadata update failure', {
-          activityId: editingActivity.id,
-          errorMessage: metadataResult.error?.message,
-          errorCode: metadataResult.error?.code,
-          errorDetails: metadataResult.error?.details,
-          errorHint: metadataResult.error?.hint
-        });
-        return;
-      }
-
-      logCloudSync('activity photo metadata update success', { activityId: editingActivity.id });
-      const { signedUrl, error: signedUrlError } = await createSupabaseSignedImageUrl(nextPhoto.storagePath, SIGNED_URL_TTL_SECONDS);
-      if (signedUrl && !signedUrlError) {
-        setSignedPhotoCache((prev) => ({
-          ...prev,
-          [nextPhoto.storagePath]: {
-            url: signedUrl,
-            expiresAt: Date.now() + SIGNED_URL_TTL_SECONDS * 1000
-          }
-        }));
-      } else {
-        logCloudSync('activity signed url failed', {
-          activityId: editingActivity.id,
-          storagePath: nextPhoto.storagePath,
-          errorMessage: signedUrlError?.message,
-          statusCode: signedUrlError?.statusCode
-        });
-      }
-      setActivityPhoto(editingActivity.id, nextPhoto);
-      setEditingActivity((prev) => (prev ? { ...prev, photo: nextPhoto } : prev));
-      void pushActivityToCloud(editingActivity.id);
-
-      if (oldPath) {
-        const cleanupResult = await removeActivityImage(oldPath);
-        if (!cleanupResult.success) {
-          logCloudSync('activity old photo cleanup failed', { activityId: editingActivity.id, storagePath: oldPath });
-        }
-      }
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'upload_failed';
       logCloudSync('activity photo upload exception', { activityId: editingActivity.id, reason });
@@ -640,43 +565,12 @@ export function TripScreen() {
   };
 
   const handleRemoveActivityPhoto = async () => {
-    if (!editingActivity?.photo?.storagePath) return;
+    if (!editingActivity) return;
     setPhotoWarning('');
-
-    const oldPath = editingActivity.photo.storagePath;
-    const metadataResult = await updateItineraryActivityPhotoMetadata({
-      activityId: editingActivity.id,
-      photoStoragePath: null,
-      photoFileName: null,
-      photoUploadedAt: null
-    });
-
-    if (!metadataResult.success) {
-      setPhotoWarning(PHOTO_METADATA_WARNING);
-      logCloudSync('activity photo metadata clear failure', {
-        activityId: editingActivity.id,
-        errorMessage: metadataResult.error?.message,
-        errorCode: metadataResult.error?.code,
-        errorDetails: metadataResult.error?.details,
-        errorHint: metadataResult.error?.hint
-      });
-      return;
+    if (draftPhotoChange?.operation !== 'remove') {
+      URL.revokeObjectURL(draftPhotoChange?.previewUrl ?? '');
     }
-
-    logCloudSync('activity photo metadata clear success', { activityId: editingActivity.id });
-    setActivityPhoto(editingActivity.id, undefined);
-    setEditingActivity((prev) => (prev ? { ...prev, photo: undefined } : prev));
-    setSignedPhotoCache((prev) => {
-      const next = { ...prev };
-      delete next[oldPath];
-      return next;
-    });
-    void pushActivityToCloud(editingActivity.id);
-
-    const result = await removeActivityImage(oldPath);
-    if (!result.success) {
-      logCloudSync('activity photo storage remove failed', { activityId: editingActivity.id, storagePath: oldPath });
-    }
+    setDraftPhotoChange({ operation: 'remove' });
   };
 
   useEffect(() => {
@@ -859,7 +753,11 @@ export function TripScreen() {
         dayId={editingActivity?.dayId ?? selectedDay.id}
         onClose={handleCloseSheet}
         onSubmit={editingActivity ? handleEdit : handleCreate}
-        photoUrl={editingActivity ? getActivityPhotoUrl(editingActivity) : ''}
+        photoUrl={
+          draftPhotoChange?.operation === 'remove'
+            ? ''
+            : draftPhotoChange?.previewUrl ?? (editingActivity ? getActivityPhotoUrl(editingActivity) : '')
+        }
         isUploadingPhoto={isUploadingPhoto}
         uploadError={photoWarning}
         onUploadPhoto={handleUploadActivityPhoto}
