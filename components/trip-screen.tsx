@@ -79,7 +79,11 @@ const PHOTO_UPLOAD_WARNING = '行程相片上載失敗，請稍後再試';
 const PHOTO_METADATA_WARNING = '行程相片雲端同步失敗，請稍後再試';
 const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
 const SIGNED_URL_TTL_SECONDS = 60 * 30;
-const PHOTO_UPLOAD_MAX_BYTES = 1024 * 1024;
+const PHOTO_UPLOAD_MAX_INPUT_BYTES = 15 * 1024 * 1024;
+const PHOTO_UPLOAD_TARGET_BYTES = 1.5 * 1024 * 1024;
+const PHOTO_MAX_DIMENSION = 2560;
+const SUPPORTED_ACTIVITY_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const UNSUPPORTED_HEIC_TYPES = new Set(['image/heic', 'image/heif']);
 
 type SignedPhotoCache = {
   url: string;
@@ -106,8 +110,16 @@ function createJpegBlobFromImage(file: File): Promise<Blob> {
 
     image.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = image.naturalWidth;
-      canvas.height = image.naturalHeight;
+      let width = image.naturalWidth;
+      let height = image.naturalHeight;
+      const largerSide = Math.max(width, height);
+      if (largerSide > PHOTO_MAX_DIMENSION) {
+        const scale = PHOTO_MAX_DIMENSION / largerSide;
+        width = Math.max(1, Math.round(width * scale));
+        height = Math.max(1, Math.round(height * scale));
+      }
+      canvas.width = width;
+      canvas.height = height;
       const context = canvas.getContext('2d');
 
       if (!context) {
@@ -116,19 +128,30 @@ function createJpegBlobFromImage(file: File): Promise<Blob> {
         return;
       }
 
-      context.drawImage(image, 0, 0);
-      canvas.toBlob(
-        (blob) => {
-          URL.revokeObjectURL(objectUrl);
-          if (!blob) {
-            reject(new Error('image_conversion_failed'));
-            return;
-          }
-          resolve(blob);
-        },
-        'image/jpeg',
-        0.9
-      );
+      context.drawImage(image, 0, 0, width, height);
+      const qualitySteps = [0.9, 0.82, 0.75, 0.68, 0.6];
+      const tryQuality = (index: number) => {
+        const quality = qualitySteps[index];
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              URL.revokeObjectURL(objectUrl);
+              reject(new Error('image_conversion_failed'));
+              return;
+            }
+
+            if (blob.size <= PHOTO_UPLOAD_TARGET_BYTES || index >= qualitySteps.length - 1) {
+              URL.revokeObjectURL(objectUrl);
+              resolve(blob);
+              return;
+            }
+            tryQuality(index + 1);
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      tryQuality(0);
     };
 
     image.onerror = () => {
@@ -144,11 +167,11 @@ function mapActivityUploadErrorMessage(params: { code?: string; statusCode?: str
   if (params.missingEnv && params.missingEnv.length > 0) {
     return 'Supabase 未完成設定，請檢查環境變數';
   }
-  if (params.code === 'unsupported_file_type' || params.code === 'image_conversion_failed' || params.code === 'image_load_failed') {
-    return '相片格式或大小不支援';
+  if (params.code === 'unsupported_file_type') {
+    return '相片格式不支援，請使用 JPG、PNG 或 WebP';
   }
-  if (params.code === 'file_too_large') {
-    return '相片格式或大小不支援';
+  if (params.code === 'file_too_large' || params.code === 'image_conversion_failed' || params.code === 'image_load_failed') {
+    return '相片太大，請選擇較小的圖片';
   }
   if (params.code === 'storage_permission_denied' || params.statusCode === '403') {
     return '相片上載權限被拒，請檢查 Storage policy';
@@ -494,11 +517,15 @@ export function TripScreen() {
         setPhotoWarning(mapActivityUploadErrorMessage({ missingEnv }));
         return;
       }
-      if (!file.type.startsWith('image/')) {
+      if (UNSUPPORTED_HEIC_TYPES.has(file.type)) {
         setPhotoWarning(mapActivityUploadErrorMessage({ code: 'unsupported_file_type' }));
         return;
       }
-      if (file.size > PHOTO_UPLOAD_MAX_BYTES) {
+      if (!SUPPORTED_ACTIVITY_IMAGE_TYPES.has(file.type)) {
+        setPhotoWarning(mapActivityUploadErrorMessage({ code: 'unsupported_file_type' }));
+        return;
+      }
+      if (file.size > PHOTO_UPLOAD_MAX_INPUT_BYTES) {
         setPhotoWarning(mapActivityUploadErrorMessage({ code: 'file_too_large' }));
         return;
       }
@@ -525,6 +552,11 @@ export function TripScreen() {
         fileSize: file.size
       });
       const jpegBlob = await createJpegBlobFromImage(file);
+      logCloudSync('activity photo processed blob', {
+        activityId: editingActivity.id,
+        processedType: jpegBlob.type,
+        processedSize: jpegBlob.size
+      });
       const uploadResult = await uploadImageToSupabaseStorage({
         path: storagePath,
         file: jpegBlob,
