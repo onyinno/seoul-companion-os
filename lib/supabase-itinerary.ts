@@ -42,6 +42,9 @@ type ItineraryActivityCoreUpsertRow = {
 
 type ItineraryRepoError = {
   message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
 };
 
 function mapRowToActivity(row: ItineraryActivityRow): Activity {
@@ -127,7 +130,7 @@ export async function fetchItineraryActivities(): Promise<{ activities: Activity
     .order('display_order', { ascending: true });
 
   if (error) {
-    return { activities: [], error: { message: error.message } };
+    return { activities: [], error: { message: error.message, code: error.code, details: error.details, hint: error.hint } };
   }
 
   return {
@@ -150,7 +153,7 @@ export async function upsertItineraryActivity(activity: Activity): Promise<{ suc
   const payload = mapActivityToCoreUpsertRow(activity, userId);
   const { error } = await client.from(ITINERARY_ACTIVITIES_TABLE).upsert(payload, { onConflict: 'id' });
   if (error) {
-    return { success: false, error: { message: error.message } };
+    return { success: false, error: { message: error.message, code: error.code, details: error.details, hint: error.hint } };
   }
 
   return { success: true, error: null };
@@ -174,7 +177,7 @@ export async function upsertItineraryActivitiesBatch(activities: Activity[]): Pr
   const payload = activities.map((activity) => mapActivityToCoreUpsertRow(activity, userId));
   const { error } = await client.from(ITINERARY_ACTIVITIES_TABLE).upsert(payload, { onConflict: 'id' });
   if (error) {
-    return { success: false, error: { message: error.message } };
+    return { success: false, error: { message: error.message, code: error.code, details: error.details, hint: error.hint } };
   }
 
   return { success: true, error: null };
@@ -198,7 +201,7 @@ export async function deleteItineraryActivity(activityId: string): Promise<{ suc
     .eq('user_id', userId);
 
   if (error) {
-    return { success: false, error: { message: error.message } };
+    return { success: false, error: { message: error.message, code: error.code, details: error.details, hint: error.hint } };
   }
 
   return { success: true, error: null };
@@ -231,7 +234,7 @@ export async function updateItineraryActivityPhotoMetadata(params: {
     .eq('user_id', userId);
 
   if (error) {
-    return { success: false, error: { message: error.message } };
+    return { success: false, error: { message: error.message, code: error.code, details: error.details, hint: error.hint } };
   }
 
   return { success: true, error: null };

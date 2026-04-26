@@ -11,7 +11,13 @@ import {
   upsertItineraryActivitiesBatch,
   upsertItineraryActivity
 } from '@/lib/supabase-itinerary';
-import { createSupabaseSignedImageUrl, removeActivityImage, uploadActivityImage } from '@/lib/supabase-storage';
+import {
+  SUPABASE_TRIP_PHOTOS_BUCKET,
+  buildActivityImagePath,
+  createSupabaseSignedImageUrl,
+  removeActivityImage,
+  uploadImageToSupabaseStorage
+} from '@/lib/supabase-storage';
 import { formatDate, googleMapsSearchUrl, weatherLabel } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
@@ -132,6 +138,22 @@ function createJpegBlobFromImage(file: File): Promise<Blob> {
 
     image.src = objectUrl;
   });
+}
+
+function mapActivityUploadErrorMessage(params: { code?: string; statusCode?: string; missingEnv?: string[] }): string {
+  if (params.missingEnv && params.missingEnv.length > 0) {
+    return 'Supabase 未完成設定，請檢查環境變數';
+  }
+  if (params.code === 'unsupported_file_type' || params.code === 'image_conversion_failed' || params.code === 'image_load_failed') {
+    return '相片格式或大小不支援';
+  }
+  if (params.code === 'file_too_large') {
+    return '相片格式或大小不支援';
+  }
+  if (params.code === 'storage_permission_denied' || params.statusCode === '403') {
+    return '相片上載權限被拒，請檢查 Storage policy';
+  }
+  return PHOTO_UPLOAD_WARNING;
 }
 
 const resolveCoverPreview = (coverImage: string) => {
@@ -467,22 +489,57 @@ export function TripScreen() {
 
     try {
       const missingEnv = getSupabaseMissingEnvKeys();
-      if (missingEnv.length > 0 || !file.type.startsWith('image/') || file.size > PHOTO_UPLOAD_MAX_BYTES) {
-        setPhotoWarning(PHOTO_UPLOAD_WARNING);
+      if (missingEnv.length > 0) {
+        logCloudSync('activity photo upload blocked: missing env', { activityId: editingActivity.id, missingEnv });
+        setPhotoWarning(mapActivityUploadErrorMessage({ missingEnv }));
+        return;
+      }
+      if (!file.type.startsWith('image/')) {
+        setPhotoWarning(mapActivityUploadErrorMessage({ code: 'unsupported_file_type' }));
+        return;
+      }
+      if (file.size > PHOTO_UPLOAD_MAX_BYTES) {
+        setPhotoWarning(mapActivityUploadErrorMessage({ code: 'file_too_large' }));
         return;
       }
 
       const { user } = await ensureAnonymousSupabaseUserWithReason();
       if (!user?.id) {
-        setPhotoWarning(PHOTO_UPLOAD_WARNING);
+        logCloudSync('activity photo upload blocked: shared user missing', {
+          activityId: editingActivity.id,
+          hasSharedUserId: Boolean(sharedUserId)
+        });
+        setPhotoWarning(mapActivityUploadErrorMessage({ code: 'shared_user_not_found' }));
         return;
       }
 
-      logCloudSync('activity photo upload started', { activityId: editingActivity.id });
+      const fileId = crypto.randomUUID();
+      const storagePath = buildActivityImagePath(user.id, editingActivity.id, fileId);
+      logCloudSync('activity photo upload started', {
+        activityId: editingActivity.id,
+        hasSharedUserId: Boolean(sharedUserId || user.id),
+        bucket: SUPABASE_TRIP_PHOTOS_BUCKET,
+        storagePath,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size
+      });
       const jpegBlob = await createJpegBlobFromImage(file);
-      const uploadResult = await uploadActivityImage(editingActivity.id, jpegBlob);
+      const uploadResult = await uploadImageToSupabaseStorage({
+        path: storagePath,
+        file: jpegBlob,
+        contentType: 'image/jpeg'
+      });
       if (uploadResult.error || !uploadResult.path) {
-        setPhotoWarning(PHOTO_UPLOAD_WARNING);
+        logCloudSync('activity photo upload failed', {
+          activityId: editingActivity.id,
+          bucket: SUPABASE_TRIP_PHOTOS_BUCKET,
+          storagePath,
+          errorMessage: uploadResult.error?.message ?? 'upload_failed',
+          statusCode: uploadResult.error?.statusCode
+        });
+        const mappedCode = uploadResult.error?.statusCode === '403' ? 'storage_permission_denied' : uploadResult.error?.message;
+        setPhotoWarning(mapActivityUploadErrorMessage({ code: mappedCode, statusCode: uploadResult.error?.statusCode }));
         return;
       }
 
@@ -503,11 +560,34 @@ export function TripScreen() {
 
       if (!metadataResult.success) {
         setPhotoWarning(PHOTO_METADATA_WARNING);
-        logCloudSync('activity photo metadata update failure', { activityId: editingActivity.id, code: metadataResult.error?.message });
+        logCloudSync('activity photo metadata update failure', {
+          activityId: editingActivity.id,
+          errorMessage: metadataResult.error?.message,
+          errorCode: metadataResult.error?.code,
+          errorDetails: metadataResult.error?.details,
+          errorHint: metadataResult.error?.hint
+        });
         return;
       }
 
       logCloudSync('activity photo metadata update success', { activityId: editingActivity.id });
+      const { signedUrl, error: signedUrlError } = await createSupabaseSignedImageUrl(nextPhoto.storagePath, SIGNED_URL_TTL_SECONDS);
+      if (signedUrl && !signedUrlError) {
+        setSignedPhotoCache((prev) => ({
+          ...prev,
+          [nextPhoto.storagePath]: {
+            url: signedUrl,
+            expiresAt: Date.now() + SIGNED_URL_TTL_SECONDS * 1000
+          }
+        }));
+      } else {
+        logCloudSync('activity signed url failed', {
+          activityId: editingActivity.id,
+          storagePath: nextPhoto.storagePath,
+          errorMessage: signedUrlError?.message,
+          statusCode: signedUrlError?.statusCode
+        });
+      }
       setActivityPhoto(editingActivity.id, nextPhoto);
       setEditingActivity((prev) => (prev ? { ...prev, photo: nextPhoto } : prev));
       void pushActivityToCloud(editingActivity.id);
@@ -518,8 +598,10 @@ export function TripScreen() {
           logCloudSync('activity old photo cleanup failed', { activityId: editingActivity.id, storagePath: oldPath });
         }
       }
-    } catch {
-      setPhotoWarning(PHOTO_UPLOAD_WARNING);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'upload_failed';
+      logCloudSync('activity photo upload exception', { activityId: editingActivity.id, reason });
+      setPhotoWarning(mapActivityUploadErrorMessage({ code: reason }));
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -539,7 +621,13 @@ export function TripScreen() {
 
     if (!metadataResult.success) {
       setPhotoWarning(PHOTO_METADATA_WARNING);
-      logCloudSync('activity photo metadata clear failure', { activityId: editingActivity.id, code: metadataResult.error?.message });
+      logCloudSync('activity photo metadata clear failure', {
+        activityId: editingActivity.id,
+        errorMessage: metadataResult.error?.message,
+        errorCode: metadataResult.error?.code,
+        errorDetails: metadataResult.error?.details,
+        errorHint: metadataResult.error?.hint
+      });
       return;
     }
 
