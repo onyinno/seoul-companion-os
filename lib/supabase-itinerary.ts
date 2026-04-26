@@ -24,6 +24,22 @@ type ItineraryActivityRow = {
   updated_at: string | null;
 };
 
+type ItineraryActivityCoreUpsertRow = {
+  id: string;
+  user_id: string;
+  day_id: string;
+  title: string;
+  category: string;
+  time: string;
+  place: string;
+  address: string | null;
+  google_maps_url: string | null;
+  note: string | null;
+  cost: number | null;
+  display_order: number | null;
+  deleted_at: string | null;
+};
+
 type ItineraryRepoError = {
   message: string;
 };
@@ -57,7 +73,7 @@ function normalizeCost(value: Activity['cost']): number | null {
   return Math.round(numeric);
 }
 
-function mapActivityToRow(activity: Activity, userId: string): Omit<ItineraryActivityRow, 'updated_at'> {
+function mapActivityToCoreUpsertRow(activity: Activity, userId: string): ItineraryActivityCoreUpsertRow {
   return {
     id: activity.id,
     user_id: userId,
@@ -71,9 +87,6 @@ function mapActivityToRow(activity: Activity, userId: string): Omit<ItineraryAct
     note: activity.note?.trim() || null,
     cost: normalizeCost(activity.cost),
     display_order: Number.isFinite(activity.order) ? Math.round(activity.order) : null,
-    photo_storage_path: null,
-    photo_file_name: null,
-    photo_uploaded_at: null,
     deleted_at: null
   };
 }
@@ -127,7 +140,7 @@ export async function upsertItineraryActivity(activity: Activity): Promise<{ suc
     return { success: false, error: { message: 'shared_user_not_found' } };
   }
 
-  const payload = mapActivityToRow(activity, userId);
+  const payload = mapActivityToCoreUpsertRow(activity, userId);
   const { error } = await client.from(ITINERARY_ACTIVITIES_TABLE).upsert(payload, { onConflict: 'id' });
   if (error) {
     return { success: false, error: { message: error.message } };
@@ -151,7 +164,7 @@ export async function upsertItineraryActivitiesBatch(activities: Activity[]): Pr
     return { success: true, error: null };
   }
 
-  const payload = activities.map((activity) => mapActivityToRow(activity, userId));
+  const payload = activities.map((activity) => mapActivityToCoreUpsertRow(activity, userId));
   const { error } = await client.from(ITINERARY_ACTIVITIES_TABLE).upsert(payload, { onConflict: 'id' });
   if (error) {
     return { success: false, error: { message: error.message } };
