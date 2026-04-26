@@ -1,4 +1,5 @@
 import { getSupabaseClient } from '@/lib/supabase-client';
+import { getSupabaseCurrentUser } from '@/lib/supabase-auth';
 
 export const SUPABASE_TRIP_PHOTOS_BUCKET = 'trip-photos';
 
@@ -7,7 +8,7 @@ export function buildShoppingImagePath(userId: string, itemId: string, fileId: s
 }
 
 export function buildActivityImagePath(userId: string, activityId: string, fileId: string): string {
-  return `${userId}/activities/${activityId}/${fileId}`;
+  return `${userId}/activities/${activityId}/${fileId}.jpg`;
 }
 
 type UploadImageParams = {
@@ -102,4 +103,26 @@ export async function createSupabaseSignedImageUrl(
     signedUrl: data.signedUrl,
     error: null
   };
+}
+
+export async function uploadActivityImage(
+  activityId: string,
+  file: Blob | File | ArrayBuffer | Uint8Array
+): Promise<{ path: string | null; error: SupabaseStorageError | null }> {
+  const user = await getSupabaseCurrentUser();
+  if (!user?.id) {
+    return { path: null, error: { message: 'shared_user_not_found' } };
+  }
+
+  const fileId = crypto.randomUUID();
+  const path = buildActivityImagePath(user.id, activityId, fileId);
+  return uploadImageToSupabaseStorage({
+    path,
+    file,
+    contentType: 'image/jpeg'
+  });
+}
+
+export async function removeActivityImage(path: string): Promise<{ success: boolean; error: SupabaseStorageError | null }> {
+  return deleteSupabaseStorageImage(path);
 }

@@ -56,7 +56,14 @@ function mapRowToActivity(row: ItineraryActivityRow): Activity {
     googleMapsUrl: row.google_maps_url ?? '',
     note: row.note ?? '',
     cost: row.cost == null ? 0 : Number(row.cost),
-    order: row.display_order ?? 0
+    order: row.display_order ?? 0,
+    photo: row.photo_storage_path
+      ? {
+          storagePath: row.photo_storage_path,
+          fileName: row.photo_file_name ?? '',
+          uploadedAt: row.photo_uploaded_at ?? row.updated_at ?? new Date().toISOString()
+        }
+      : undefined
   };
 }
 
@@ -188,6 +195,39 @@ export async function deleteItineraryActivity(activityId: string): Promise<{ suc
     .from(ITINERARY_ACTIVITIES_TABLE)
     .delete()
     .eq('id', activityId)
+    .eq('user_id', userId);
+
+  if (error) {
+    return { success: false, error: { message: error.message } };
+  }
+
+  return { success: true, error: null };
+}
+
+export async function updateItineraryActivityPhotoMetadata(params: {
+  activityId: string;
+  photoStoragePath: string | null;
+  photoFileName: string | null;
+  photoUploadedAt: string | null;
+}): Promise<{ success: boolean; error: ItineraryRepoError | null }> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { success: false, error: { message: 'supabase_disabled' } };
+  }
+
+  const userId = await getSharedUserId();
+  if (!userId) {
+    return { success: false, error: { message: 'shared_user_not_found' } };
+  }
+
+  const { error } = await client
+    .from(ITINERARY_ACTIVITIES_TABLE)
+    .update({
+      photo_storage_path: params.photoStoragePath,
+      photo_file_name: params.photoFileName,
+      photo_uploaded_at: params.photoUploadedAt
+    })
+    .eq('id', params.activityId)
     .eq('user_id', userId);
 
   if (error) {

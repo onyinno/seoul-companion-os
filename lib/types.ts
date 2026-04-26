@@ -51,6 +51,11 @@ export type Activity = {
   note: string;
   cost: number;
   order: number;
+  photo?: {
+    storagePath: string;
+    fileName: string;
+    uploadedAt: string;
+  };
 };
 
 export type FlightBooking = {

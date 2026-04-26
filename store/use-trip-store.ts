@@ -78,6 +78,7 @@ type TripState = {
   setTripCoverImage: (coverImage: string) => void;
   addActivity: (input: ActivityInput) => void;
   updateActivity: (activityId: string, input: ActivityInput) => void;
+  setActivityPhoto: (activityId: string, photo: Activity['photo']) => void;
   deleteActivity: (activityId: string) => void;
   moveActivityUp: (activityId: string) => void;
   moveActivityDown: (activityId: string) => void;
@@ -223,6 +224,16 @@ export const useTripStore = create<TripState>()(
         const sortedCurrentDay = sortDayActivitiesByTime(nextActivities, current.dayId);
         const sortedTargetDay = sortDayActivitiesByTime(sortedCurrentDay, dayId);
         set({ activities: sortedTargetDay });
+      },
+      setActivityPhoto: (activityId, photo) => {
+        const activities = get().activities.map((activity) => {
+          if (activity.id !== activityId) return activity;
+          return {
+            ...activity,
+            photo: photo ?? undefined
+          };
+        });
+        set({ activities });
       },
       deleteActivity: (activityId) => {
         const target = get().activities.find((activity) => activity.id === activityId);

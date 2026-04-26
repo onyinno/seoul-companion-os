@@ -23,6 +23,11 @@ type AddActivitySheetProps = {
   initialActivity?: Activity | null;
   onClose: () => void;
   onSubmit: (input: ActivityFormInput) => void;
+  photoUrl?: string;
+  isUploadingPhoto?: boolean;
+  uploadError?: string;
+  onUploadPhoto?: (file: File) => void;
+  onRemovePhoto?: () => void;
 };
 
 const categoryOptions: { value: ActivityCategory; label: string }[] = [
@@ -51,7 +56,19 @@ type FormErrors = {
   cost?: string;
 };
 
-export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, onSubmit }: AddActivitySheetProps) {
+export function AddActivitySheet({
+  open,
+  dayId,
+  mode,
+  initialActivity,
+  onClose,
+  onSubmit,
+  photoUrl,
+  isUploadingPhoto,
+  uploadError,
+  onUploadPhoto,
+  onRemovePhoto
+}: AddActivitySheetProps) {
   const [category, setCategory] = useState<ActivityCategory>(defaultForm.category);
   const [time, setTime] = useState(defaultForm.time);
   const [place, setPlace] = useState(defaultForm.place);
@@ -237,6 +254,46 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
             />
             {errors.cost && <p className="text-xs text-[var(--accent-strong)]">{errors.cost}</p>}
           </label>
+
+          {mode === 'edit' && initialActivity && (
+            <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-3">
+              <p className="text-xs font-medium text-[var(--text-secondary)]">行程相片</p>
+              {initialActivity.photo?.storagePath && photoUrl ? (
+                <img src={photoUrl} alt={`${initialActivity.title} 行程相片`} className="mt-2 h-24 w-24 rounded-lg object-cover" />
+              ) : (
+                <p className="mt-2 text-xs text-[var(--text-muted)]">尚未新增相片</p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--balance-bluegrey-deep)]">
+                  {initialActivity.photo?.storagePath ? '更換相片' : '新增相片'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isUploadingPhoto}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (file) {
+                        onUploadPhoto?.(file);
+                      }
+                    }}
+                  />
+                </label>
+                {initialActivity.photo?.storagePath && (
+                  <Button
+                    type="button"
+                    onClick={() => onRemovePhoto?.()}
+                    className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-secondary)]"
+                  >
+                    移除相片
+                  </Button>
+                )}
+              </div>
+              {isUploadingPhoto && <p className="mt-2 text-xs text-[var(--text-muted)]">正在上載...</p>}
+              {uploadError && <p className="mt-2 text-xs text-[var(--accent-strong)]">{uploadError}</p>}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2 pt-2">
             <Button type="button" onClick={onClose} className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-4 py-3 text-[var(--balance-bluegrey-deep)]">
