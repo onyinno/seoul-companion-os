@@ -267,16 +267,21 @@ export function ShoppingScreen() {
       return;
     }
 
+    let disposed = false;
     let unsubscribe: (() => void) | null = null;
     void subscribeToShoppingItemsChanges(() => {
       void pullShoppingItemsFromCloud({ skipInitialMigration: true });
     }).then((result) => {
       if (!result.error) {
         unsubscribe = result.unsubscribe;
+        if (disposed) {
+          unsubscribe();
+        }
       }
     });
 
     return () => {
+      disposed = true;
       if (unsubscribe) {
         unsubscribe();
       }

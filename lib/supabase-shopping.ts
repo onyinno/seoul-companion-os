@@ -5,6 +5,11 @@ import { getSupabaseClient } from '@/lib/supabase-client';
 import type { ShoppingItem } from '@/lib/types';
 
 const SHOPPING_TABLE = 'shopping_items';
+const SHOPPING_CHANNEL_PREFIX = 'shopping-items-';
+
+let activeShoppingChannel: RealtimeChannel | null = null;
+let activeShoppingChannelUserId: string | null = null;
+const shoppingChangeListeners = new Set<() => void>();
 
 type ShoppingItemRow = {
   id: string;
@@ -192,24 +197,56 @@ export async function subscribeToShoppingItemsChanges(
     return { unsubscribe: () => undefined, error: { message: 'shared_user_not_found' } };
   }
 
-  const channel: RealtimeChannel = client
-    .channel(`shopping-items-${userId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: SHOPPING_TABLE,
-        filter: `user_id=eq.${userId}`
-      },
-      () => onChange()
-    )
-    .subscribe();
+  const channelName = `${SHOPPING_CHANNEL_PREFIX}${userId}`;
+  const releaseListener = () => {
+    shoppingChangeListeners.delete(onChange);
+    if (shoppingChangeListeners.size === 0 && activeShoppingChannel) {
+      void client.removeChannel(activeShoppingChannel);
+      activeShoppingChannel = null;
+      activeShoppingChannelUserId = null;
+    }
+  };
+
+  if (activeShoppingChannel && activeShoppingChannelUserId !== userId) {
+    await client.removeChannel(activeShoppingChannel);
+    activeShoppingChannel = null;
+    activeShoppingChannelUserId = null;
+    shoppingChangeListeners.clear();
+  }
+
+  shoppingChangeListeners.add(onChange);
+
+  if (!activeShoppingChannel) {
+    const staleChannels = client.getChannels().filter((channel) => {
+      const topic = (channel as RealtimeChannel & { topic?: string }).topic ?? '';
+      return topic === `realtime:${channelName}` || topic === channelName;
+    });
+    await Promise.all(staleChannels.map((channel) => client.removeChannel(channel)));
+
+    activeShoppingChannel = client
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: SHOPPING_TABLE,
+          filter: `user_id=eq.${userId}`
+        },
+        () => {
+          shoppingChangeListeners.forEach((listener) => listener());
+        }
+      )
+      .subscribe((status) => {
+        if (process.env.NODE_ENV !== 'production' && status === 'CHANNEL_ERROR') {
+          console.warn('[shopping-realtime] channel error', { userId });
+        }
+      });
+    activeShoppingChannelUserId = userId;
+  }
 
   return {
-    unsubscribe: () => {
-      void client.removeChannel(channel);
-    },
+    unsubscribe: releaseListener,
     error: null
   };
 }
