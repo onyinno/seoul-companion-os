@@ -2,6 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ExternalLink, Image as ImageIcon, MapPin, Plus, Save } from 'lucide-react';
+import { getSupabaseCurrentUser } from '@/lib/supabase-auth';
+import { getSupabaseClient } from '@/lib/supabase-client';
+import {
+  deleteItineraryActivity as deleteItineraryActivityFromSupabase,
+  fetchItineraryActivities,
+  upsertItineraryActivitiesBatch,
+  upsertItineraryActivity
+} from '@/lib/supabase-itinerary';
 import { formatDate, googleMapsSearchUrl, weatherLabel } from '@/lib/utils';
 import { useTripStore } from '@/store/use-trip-store';
 import { cn } from '@/lib/utils';
@@ -58,6 +66,21 @@ const presetCovers = [
 
 const defaultCoverId = presetCovers[0].id;
 const coverValueFromPreset = (id: string) => `preset:${id}`;
+const CLOUD_SYNC_WARNING = '行程雲端同步失敗，本機資料已保留';
+const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
+
+function logCloudSync(message: string, payload?: Record<string, unknown>) {
+  if (!IS_DEV_OR_PREVIEW) {
+    return;
+  }
+
+  if (payload) {
+    console.info(`[itinerary-sync] ${message}`, payload);
+    return;
+  }
+
+  console.info(`[itinerary-sync] ${message}`);
+}
 
 const resolveCoverPreview = (coverImage: string) => {
   if (coverImage.startsWith('http://') || coverImage.startsWith('https://')) {
@@ -88,6 +111,8 @@ export function TripScreen() {
   const [baseArea, setBaseArea] = useState('');
   const [hotel, setHotel] = useState('');
   const [savedState, setSavedState] = useState<'idle' | 'saved'>('idle');
+  const [sharedUserId, setSharedUserId] = useState('');
+  const [cloudSyncWarning, setCloudSyncWarning] = useState('');
 
   const {
     trip,
@@ -100,6 +125,7 @@ export function TripScreen() {
     deleteActivity,
     moveActivityUp,
     moveActivityDown,
+    setActivities,
     updateTripBasicInfo,
     setTripCoverImage
   } = useTripStore();
@@ -161,6 +187,114 @@ export function TripScreen() {
     setEditingActivity(null);
   };
 
+  const refreshSharedUser = async (): Promise<string> => {
+    const user = await getSupabaseCurrentUser();
+    const nextUserId = user?.id && !user.is_anonymous ? user.id : '';
+    setSharedUserId(nextUserId);
+    logCloudSync('shared user resolved', { hasSharedUser: Boolean(nextUserId), userId: nextUserId || null });
+    return nextUserId;
+  };
+
+  const pullActivitiesFromCloud = async (params?: { skipInitialMigration?: boolean }) => {
+    const userId = await refreshSharedUser();
+    if (!userId) {
+      return;
+    }
+
+    setCloudSyncWarning('');
+    const localActivities = useTripStore.getState().activities;
+    const dedupedLocal = Array.from(new Map(localActivities.map((activity) => [activity.id, activity])).values());
+    const cloudResult = await fetchItineraryActivities();
+    if (cloudResult.error) {
+      console.warn(CLOUD_SYNC_WARNING, { code: cloudResult.error.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+    logCloudSync('cloud fetch completed', { count: cloudResult.activities.length });
+
+    if (cloudResult.activities.length === 0 && dedupedLocal.length > 0 && !params?.skipInitialMigration) {
+      logCloudSync('migration check', { attempted: true, localCount: dedupedLocal.length });
+      const migrationResult = await upsertItineraryActivitiesBatch(dedupedLocal);
+      if (!migrationResult.success) {
+        console.warn(CLOUD_SYNC_WARNING, { code: migrationResult.error?.message });
+        setCloudSyncWarning(CLOUD_SYNC_WARNING);
+        return;
+      }
+      logCloudSync('migration success', { uploaded: dedupedLocal.length });
+      const reloaded = await fetchItineraryActivities();
+      if (!reloaded.error) {
+        setActivities(reloaded.activities);
+        logCloudSync('post-migration reload', { count: reloaded.activities.length });
+      }
+      return;
+    }
+    logCloudSync('migration check', { attempted: false });
+    setActivities(cloudResult.activities);
+  };
+
+  const pushActivityToCloud = async (activityId: string) => {
+    const userId = sharedUserId || (await refreshSharedUser());
+    if (!userId) {
+      return;
+    }
+    const activity = useTripStore.getState().activities.find((current) => current.id === activityId);
+    if (!activity) {
+      return;
+    }
+
+    logCloudSync('upsert activity start', { activityId });
+    const result = await upsertItineraryActivity(activity);
+    if (!result.success) {
+      console.warn(CLOUD_SYNC_WARNING, { activityId, code: result.error?.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+    setCloudSyncWarning('');
+    logCloudSync('upsert activity success', { activityId });
+  };
+
+  const removeActivityFromCloud = async (activityId: string) => {
+    const userId = sharedUserId || (await refreshSharedUser());
+    if (!userId) {
+      return;
+    }
+
+    logCloudSync('delete activity start', { activityId });
+    const result = await deleteItineraryActivityFromSupabase(activityId);
+    if (!result.success) {
+      console.warn(CLOUD_SYNC_WARNING, { activityId, code: result.error?.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+
+    setCloudSyncWarning('');
+    logCloudSync('delete activity success', { activityId });
+  };
+
+  const syncDayOrderToCloud = async (dayIds: string[]) => {
+    const userId = sharedUserId || (await refreshSharedUser());
+    if (!userId) {
+      return;
+    }
+
+    const targets = useTripStore
+      .getState()
+      .activities.filter((activity) => dayIds.includes(activity.dayId))
+      .sort((a, b) => (a.dayId === b.dayId ? a.order - b.order : a.dayId.localeCompare(b.dayId)));
+    if (targets.length === 0) {
+      return;
+    }
+
+    targets.forEach((activity) => logCloudSync('upsert activity id', { activityId: activity.id }));
+    const result = await upsertItineraryActivitiesBatch(targets);
+    if (!result.success) {
+      console.warn(CLOUD_SYNC_WARNING, { code: result.error?.message });
+      setCloudSyncWarning(CLOUD_SYNC_WARNING);
+      return;
+    }
+    setCloudSyncWarning('');
+  };
+
   const handleCreate = (input: {
     dayId: string;
     category: ActivityCategory;
@@ -171,7 +305,15 @@ export function TripScreen() {
     note: string;
     cost: number;
   }) => {
+    const beforeIds = new Set(useTripStore.getState().activities.map((activity) => activity.id));
     addActivity(input);
+    const created = useTripStore
+      .getState()
+      .activities.find((activity) => !beforeIds.has(activity.id));
+    if (created) {
+      void pushActivityToCloud(created.id);
+      void syncDayOrderToCloud([created.dayId]);
+    }
   };
 
   const handleEdit = (input: {
@@ -185,12 +327,19 @@ export function TripScreen() {
     cost: number;
   }) => {
     if (!editingActivity) return;
+    const originalDayId = editingActivity.dayId;
     updateActivity(editingActivity.id, input);
+    void pushActivityToCloud(editingActivity.id);
+    void syncDayOrderToCloud([originalDayId, input.dayId]);
   };
 
   const handleConfirmDelete = () => {
     if (!deletingActivity) return;
-    deleteActivity(deletingActivity.id);
+    const deletingId = deletingActivity.id;
+    const deletingDayId = deletingActivity.dayId;
+    deleteActivity(deletingId);
+    void removeActivityFromCloud(deletingId);
+    void syncDayOrderToCloud([deletingDayId]);
     setDeletingActivity(null);
   };
 
@@ -213,6 +362,44 @@ export function TripScreen() {
     setSavedState('saved');
     window.setTimeout(() => setSavedState('idle'), 1500);
   };
+
+  useEffect(() => {
+    void pullActivitiesFromCloud();
+  }, []);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) {
+      return;
+    }
+
+    const {
+      data: { subscription }
+    } = client.auth.onAuthStateChange(() => {
+      void pullActivitiesFromCloud();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const reloadOnFocus = () => {
+      if (document.visibilityState === 'hidden') {
+        return;
+      }
+      void pullActivitiesFromCloud({ skipInitialMigration: true });
+    };
+
+    window.addEventListener('focus', reloadOnFocus);
+    document.addEventListener('visibilitychange', reloadOnFocus);
+
+    return () => {
+      window.removeEventListener('focus', reloadOnFocus);
+      document.removeEventListener('visibilitychange', reloadOnFocus);
+    };
+  }, []);
 
   return (
     <>
@@ -311,10 +498,24 @@ export function TripScreen() {
                   </Button>
                 </div>
                 <div className="flex items-center gap-1 text-[var(--text-muted)]">
-                  <Button onClick={() => moveActivityUp(activity.id)} className="rounded-lg border border-[var(--border-soft)] p-1.5 text-[var(--text-muted)]" aria-label="上移排序">
+                  <Button
+                    onClick={() => {
+                      moveActivityUp(activity.id);
+                      void syncDayOrderToCloud([activity.dayId]);
+                    }}
+                    className="rounded-lg border border-[var(--border-soft)] p-1.5 text-[var(--text-muted)]"
+                    aria-label="上移排序"
+                  >
                     <ArrowUp className="h-3.5 w-3.5" />
                   </Button>
-                  <Button onClick={() => moveActivityDown(activity.id)} className="rounded-lg border border-[var(--border-soft)] p-1.5 text-[var(--text-muted)]" aria-label="下移排序">
+                  <Button
+                    onClick={() => {
+                      moveActivityDown(activity.id);
+                      void syncDayOrderToCloud([activity.dayId]);
+                    }}
+                    className="rounded-lg border border-[var(--border-soft)] p-1.5 text-[var(--text-muted)]"
+                    aria-label="下移排序"
+                  >
                     <ArrowDown className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -322,6 +523,7 @@ export function TripScreen() {
             </li>
           ))}
         </ul>
+        {cloudSyncWarning ? <p className="text-sm text-[var(--accent-strong)]">{cloudSyncWarning}</p> : null}
 
         <Button
           onClick={() => {

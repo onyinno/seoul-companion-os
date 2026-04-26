@@ -81,6 +81,7 @@ type TripState = {
   deleteActivity: (activityId: string) => void;
   moveActivityUp: (activityId: string) => void;
   moveActivityDown: (activityId: string) => void;
+  setActivities: (activities: Activity[]) => void;
   togglePrepItem: (itemId: string) => void;
   addPrepItem: (input: PrepInput) => void;
   removePrepItem: (itemId: string) => void;
@@ -265,6 +266,9 @@ export const useTripStore = create<TripState>()(
         const temp = targetRef.order;
         targetRef.order = nextRef.order;
         nextRef.order = temp;
+        set({ activities });
+      },
+      setActivities: (activities) => {
         set({ activities });
       },
       togglePrepItem: (itemId) => {
