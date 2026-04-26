@@ -76,6 +76,20 @@
 - SQL 會授權 `authenticated` 角色可透過 Data API 存取 table（`select/insert/update/delete`）
 - 仍由 RLS policy 限制僅能讀寫 `user_id = auth.uid()` 的資料列
 
+
+## 3-3) 建立 Itinerary / Activity metadata table（Supabase Database foundation）
+
+請到 Supabase Dashboard → **SQL Editor**，執行：
+
+- `docs/supabase-itinerary-activities.sql`
+
+此 SQL 會先建立 `itinerary_activities` table 與 RLS / Data API 權限，作為後續 itinerary/activity 跨裝置同步基礎。
+目前此階段僅建立資料層 foundation：
+
+- 尚未啟用 itinerary/activity 雲端同步流程
+- 尚未啟用 activity 相片上載 UI
+- 仍不需要 `service_role` key，前端以 `authenticated` + RLS 運作
+
 ## 4) 設定 Vercel Environment Variables
 
 在 Vercel 專案設定中加入：
@@ -107,8 +121,8 @@ cp .env.example .env.local
 - Shopping 頁面會在登入後、頁面載入、以及回到頁面焦點時重新抓取 `shopping_items`，並嘗試即時同步變更（Realtime）。
 - Shopping 照片檔案仍儲存在 Supabase Storage `trip-photos`，前端以 signed URL 暫時讀取。
 - signed URL 為短時效連結，不是永久公開網址。
-- Activity / itinerary / 其他模組的完整同步尚未導入。
-- Activity 照片上傳 UI 仍在後續版本加入。
+- Activity / itinerary 的 Supabase 資料表與權限 foundation 已加入，但完整同步流程尚未導入。
+- Activity 照片上傳 UI 仍在後續版本加入（本階段未啟用）。
 - 真正的跨成員模型仍會在後續版本逐步導入（例如 `trip_members` 多成員資料模型）。
 - 在 `trip_members` 上線前，若要讓兩台裝置看到同一份旅行資料，請先使用「同一個 shared Supabase 帳戶」登入。
 - 本階段以「shared account + shopping 同步」為主，不變更既有路由架構與 v1 主要操作體驗。
