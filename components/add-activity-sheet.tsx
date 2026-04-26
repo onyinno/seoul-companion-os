@@ -23,6 +23,11 @@ type AddActivitySheetProps = {
   initialActivity?: Activity | null;
   onClose: () => void;
   onSubmit: (input: ActivityFormInput) => void;
+  photoUrl?: string;
+  isUploadingPhoto?: boolean;
+  uploadError?: string;
+  onUploadPhoto?: (file: File) => void;
+  onRemovePhoto?: () => void;
 };
 
 const categoryOptions: { value: ActivityCategory; label: string }[] = [
@@ -51,7 +56,19 @@ type FormErrors = {
   cost?: string;
 };
 
-export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, onSubmit }: AddActivitySheetProps) {
+export function AddActivitySheet({
+  open,
+  dayId,
+  mode,
+  initialActivity,
+  onClose,
+  onSubmit,
+  photoUrl,
+  isUploadingPhoto,
+  uploadError,
+  onUploadPhoto,
+  onRemovePhoto
+}: AddActivitySheetProps) {
   const [category, setCategory] = useState<ActivityCategory>(defaultForm.category);
   const [time, setTime] = useState(defaultForm.time);
   const [place, setPlace] = useState(defaultForm.place);
@@ -130,7 +147,7 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
   return (
     <div className="fixed inset-0 z-[60] bg-[color:var(--balance-bluegrey-deep)]/40">
       <button className="h-full w-full" aria-label="關閉活動面板" onClick={onClose} />
-      <section className="surface-raised absolute bottom-0 left-0 right-0 rounded-t-3xl p-4">
+      <section className="surface-raised absolute bottom-0 left-0 right-0 max-h-[90vh] overflow-y-auto rounded-t-3xl p-4">
         <header className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{mode === 'edit' ? '編輯活動' : '新增活動'}</h2>
           <Button onClick={onClose} aria-label="關閉" className="rounded-full p-2 text-[var(--text-secondary)]">
@@ -237,6 +254,46 @@ export function AddActivitySheet({ open, dayId, mode, initialActivity, onClose, 
             />
             {errors.cost && <p className="text-xs text-[var(--accent-strong)]">{errors.cost}</p>}
           </label>
+
+          {mode === 'edit' && initialActivity && (
+            <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-3">
+              <p className="text-xs font-medium text-[var(--text-secondary)]">行程相片</p>
+              {initialActivity.photo?.storagePath && photoUrl ? (
+                <img src={photoUrl} alt={`${initialActivity.title} 行程相片`} className="mt-2 h-24 w-24 rounded-lg object-cover" />
+              ) : (
+                <p className="mt-2 text-xs text-[var(--text-muted)]">尚未新增相片</p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--balance-bluegrey-deep)]">
+                  {initialActivity.photo?.storagePath ? '更換相片' : '新增相片'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isUploadingPhoto}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = '';
+                      if (file) {
+                        onUploadPhoto?.(file);
+                      }
+                    }}
+                  />
+                </label>
+                {initialActivity.photo?.storagePath && (
+                  <Button
+                    type="button"
+                    onClick={() => onRemovePhoto?.()}
+                    className="rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--text-secondary)]"
+                  >
+                    移除相片
+                  </Button>
+                )}
+              </div>
+              {isUploadingPhoto && <p className="mt-2 text-xs text-[var(--text-muted)]">正在上載...</p>}
+              {uploadError && <p className="mt-2 text-xs text-[var(--accent-strong)]">{uploadError}</p>}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-2 pt-2">
             <Button type="button" onClick={onClose} className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-card)] px-4 py-3 text-[var(--balance-bluegrey-deep)]">
