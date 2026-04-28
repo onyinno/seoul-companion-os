@@ -74,7 +74,7 @@ const presetCovers = [
 
 const defaultCoverId = presetCovers[0].id;
 const coverValueFromPreset = (id: string) => `preset:${id}`;
-const CLOUD_SYNC_WARNING = '行程雲端同步失敗，本機資料已保留';
+const CLOUD_SYNC_WARNING = '行程雲端同步失敗，已保留本機資料';
 const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
 const SIGNED_URL_TTL_SECONDS = 60 * 30;
 const PHOTO_UPLOAD_WARNING = '相片上載失敗，請稍後再試';
@@ -325,7 +325,6 @@ export function TripScreen() {
       return;
     }
 
-    targets.forEach((activity) => logCloudSync('upsert activity id', { activityId: activity.id }));
     const result = await upsertItineraryActivitiesBatch(targets);
     if (!result.success) {
       console.warn(CLOUD_SYNC_WARNING, { code: result.error?.message });
@@ -485,8 +484,6 @@ export function TripScreen() {
           logCloudSync('activity signed url failed', { storagePath: path, error: error?.message });
           return;
         }
-
-        logCloudSync('activity signed url success', { storagePath: path });
         setSignedPhotoCache((prev) => ({
           ...prev,
           [path]: {

@@ -78,6 +78,7 @@ export function AddActivitySheet({
   const [cost, setCost] = useState(defaultForm.cost);
   const [errors, setErrors] = useState<FormErrors>({});
   const [successMessage, setSuccessMessage] = useState('');
+  const hasPhotoPreview = Boolean(photoUrl);
 
   useEffect(() => {
     if (!open) return;
@@ -258,14 +259,14 @@ export function AddActivitySheet({
           {mode === 'edit' && initialActivity && (
             <div className="rounded-xl border border-[var(--border-soft)] bg-[var(--bg-surface)] p-3">
               <p className="text-xs font-medium text-[var(--text-secondary)]">行程相片</p>
-              {initialActivity.photo?.storagePath && photoUrl ? (
+              {hasPhotoPreview ? (
                 <img src={photoUrl} alt={`${initialActivity.title} 行程相片`} className="mt-2 h-24 w-24 rounded-lg object-cover" />
               ) : (
                 <p className="mt-2 text-xs text-[var(--text-muted)]">尚未新增相片</p>
               )}
               <div className="mt-2 flex flex-wrap gap-2">
                 <label className="inline-flex cursor-pointer items-center rounded-lg border border-[var(--border-soft)] bg-[var(--bg-card)] px-3 py-1.5 text-xs text-[var(--balance-bluegrey-deep)]">
-                  {initialActivity.photo?.storagePath ? '更換相片' : '新增相片'}
+                  {hasPhotoPreview ? '更換相片' : '新增相片'}
                   <input
                     type="file"
                     accept="image/*"
@@ -280,7 +281,7 @@ export function AddActivitySheet({
                     }}
                   />
                 </label>
-                {initialActivity.photo?.storagePath && (
+                {hasPhotoPreview && (
                   <Button
                     type="button"
                     onClick={() => onRemovePhoto?.()}

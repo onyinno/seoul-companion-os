@@ -85,7 +85,7 @@ type SignedPhotoCache = {
   expiresAt: number;
 };
 
-const CLOUD_SYNC_WARNING = '雲端同步失敗，本機資料已保留';
+const CLOUD_SYNC_WARNING = '購物清單雲端同步失敗，已保留本機資料';
 const IS_DEV_OR_PREVIEW = process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
 
 function logCloudSync(message: string, payload?: Record<string, unknown>) {
@@ -99,6 +99,19 @@ function logCloudSync(message: string, payload?: Record<string, unknown>) {
   }
 
   console.info(`[shopping-sync] ${message}`);
+}
+
+function logShoppingPhoto(message: string, payload?: Record<string, unknown>) {
+  if (!IS_DEV_OR_PREVIEW) {
+    return;
+  }
+
+  if (payload) {
+    console.info(`[shopping-photo] ${message}`, payload);
+    return;
+  }
+
+  console.info(`[shopping-photo] ${message}`);
 }
 
 function mapUploadErrorMessage(params: {
@@ -250,6 +263,9 @@ export function ShoppingScreen() {
 
   useEffect(() => {
     const reloadOnFocus = () => {
+      if (document.visibilityState === 'hidden') {
+        return;
+      }
       void pullShoppingItemsFromCloud({ skipInitialMigration: true });
     };
 
@@ -484,7 +500,7 @@ export function ShoppingScreen() {
         return;
       }
 
-      console.info('[shopping-photo] preparing draft image', {
+      logShoppingPhoto('preparing draft image', {
         operation: editingItem.photo?.storagePath ? 'replace' : 'add',
         draftOnly: true,
         itemId: editingItem.id,
@@ -497,7 +513,7 @@ export function ShoppingScreen() {
         URL.revokeObjectURL(draftPhotoChange.previewUrl);
       }
       const previewUrl = URL.createObjectURL(jpegBlob);
-      console.info('[shopping-photo] draft image processed', {
+      logShoppingPhoto('draft image processed', {
         itemId: editingItem.id,
         processedType: jpegBlob.type,
         processedSize: jpegBlob.size,
