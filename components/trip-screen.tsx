@@ -147,6 +147,8 @@ export function TripScreen() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [photoWarning, setPhotoWarning] = useState('');
   const [draftPhotoChange, setDraftPhotoChange] = useState<DraftActivityPhotoChange | null>(null);
+  const [routeMapPreviewOpen, setRouteMapPreviewOpen] = useState(false);
+  const [routeMapLoadFailed, setRouteMapLoadFailed] = useState<Record<string, boolean>>({});
 
   const {
     trip,
@@ -165,6 +167,18 @@ export function TripScreen() {
     setTripCoverImage
   } = useTripStore();
   const selectedDay = days.find((day) => day.id === selectedDayId) ?? days[0];
+  const routeMapByDayId: Record<string, string> = {
+    'day-1': '/route-maps/day-1.webp',
+    'day-2': '/route-maps/day-2.webp',
+    'day-3': '/route-maps/day-3.webp',
+    'day-4': '/route-maps/day-4.webp',
+    'day-5': '/route-maps/day-5.webp',
+    'day-6': '/route-maps/day-6.webp',
+    'day-7': '/route-maps/day-7.webp',
+    'day-8': '/route-maps/day-8.webp'
+  };
+  const selectedDayRouteMap = routeMapByDayId[selectedDay.id] ?? routeMapByDayId[`day-${selectedDay.dayNumber}`] ?? '';
+  const hasSelectedDayRouteMap = Boolean(selectedDayRouteMap) && !routeMapLoadFailed[selectedDay.id];
   const dayActivities = useMemo(
     () => activities.filter((activity) => activity.dayId === selectedDay.id).sort((a, b) => a.order - b.order),
     [activities, selectedDay.id]
@@ -187,7 +201,7 @@ export function TripScreen() {
   };
 
   useEffect(() => {
-    if (!deletingActivity && !isTripEditorOpen) return;
+    if (!deletingActivity && !isTripEditorOpen && !routeMapPreviewOpen) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -195,7 +209,7 @@ export function TripScreen() {
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [deletingActivity, isTripEditorOpen]);
+  }, [deletingActivity, isTripEditorOpen, routeMapPreviewOpen]);
 
   useEffect(() => {
     setTripTitle(trip.title);
@@ -644,6 +658,34 @@ export function TripScreen() {
           <p className="text-sm text-[var(--text-secondary)]">{weatherLabel(selectedDay.weather.condition)} · {selectedDay.weather.minC}°/{selectedDay.weather.maxC}°</p>
         </section>
 
+        {hasSelectedDayRouteMap ? (
+          <section className="space-y-2">
+            <div>
+              <h3 className="text-base font-semibold">今日路線圖</h3>
+              <p className="text-xs text-[var(--text-muted)]">以插畫形式標記當日目的地與路線順序，實際導航請以地圖 App 為準。</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRouteMapPreviewOpen(true)}
+              className="surface-raised w-full overflow-hidden rounded-3xl p-2 text-left shadow-soft transition-opacity hover:opacity-95"
+              aria-label={`查看第 ${selectedDay.dayNumber} 天路線圖`}
+            >
+              <img
+                src={selectedDayRouteMap}
+                alt={`第 ${selectedDay.dayNumber} 天路線圖`}
+                className="max-h-[55vh] w-full rounded-2xl object-contain"
+                loading="lazy"
+                onError={() =>
+                  setRouteMapLoadFailed((prev) => ({
+                    ...prev,
+                    [selectedDay.id]: true
+                  }))
+                }
+              />
+            </button>
+          </section>
+        ) : null}
+
         <ul className="space-y-3">
           {dayActivities.map((activity) => (
             <li key={activity.id} className="surface-raised-soft rounded-2xl p-4">
@@ -760,6 +802,22 @@ export function TripScreen() {
         onUploadPhoto={handleUploadActivityPhoto}
         onRemovePhoto={handleRemoveActivityPhoto}
       />
+
+      {routeMapPreviewOpen && hasSelectedDayRouteMap ? (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/70 p-4">
+          <div className="relative max-h-full w-full max-w-5xl overflow-auto rounded-2xl bg-[var(--bg-card)] p-3">
+            <Button
+              type="button"
+              onClick={() => setRouteMapPreviewOpen(false)}
+              className="ml-auto block rounded-lg border border-[var(--border-soft)] px-3 py-1.5 text-xs"
+              aria-label="關閉路線圖預覽"
+            >
+              關閉
+            </Button>
+            <img src={selectedDayRouteMap} alt={`第 ${selectedDay.dayNumber} 天路線圖`} className="mt-2 w-full rounded-xl object-contain" />
+          </div>
+        </div>
+      ) : null}
 
       {deletingActivity && (
         <div className="fixed inset-0 z-[70] bg-[color:var(--balance-bluegrey-deep)]/45">
